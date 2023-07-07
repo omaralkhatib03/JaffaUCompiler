@@ -6,7 +6,7 @@
 set -uo pipefail
 shopt -s globstar
 
-make clean
+# make clean
 make 
 
 mkdir -p bin
@@ -41,7 +41,7 @@ for DRIVER in compiler_tests/**/*_driver.c; do
     rm -f "${OUT}.s"
     rm -f "${OUT}.o"
     rm -f "${OUT}"
-    $JAVA_ARGS -cp $COMPILER_DIRS Compiler -S "${TO_ASSEMBLE}" -o "${OUT}.s" 2> "${LOG_PATH}.compiler.stderr.log" > "${LOG_PATH}.compiler.stdout.log"
+    java $JAVA_ARGS -cp $COMPILER_DIRS Compiler -S "${TO_ASSEMBLE}" -o "${OUT}.s" 2> "${LOG_PATH}.compiler.stderr.log" > "${LOG_PATH}.compiler.stdout.log"
     if [ $? -ne 0 ]; then
         fail_testcase "Fail: see ${LOG_PATH}.compiler.stderr.log and ${LOG_PATH}.compiler.stdout.log"
         continue

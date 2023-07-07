@@ -27,4 +27,5 @@ clean:
 	rm -rf src/grammar/*.tokens
 	rm -rf src/grammar/*.class
 	rm -rf src/*.class
-	rm -rf bin/*.class
+# rm -rf bin/*.class
+	rm -rf bin/*
