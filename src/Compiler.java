@@ -1,12 +1,47 @@
+// import grammar.*;
 import grammar.*;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.NoSuchFileException;
 
-// import org.antlr.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTree;
 
-public class Compiler extends cBaseVisitor<String> {
-    public static void main(String[] args)
+public class Compiler extends cBaseVisitor<String>
+{
+    FileWriter writer;
+    public static void main(String[] args) throws IOException, NoSuchFileException 
     {
-        System.out.println("Testing...");
-        // ANTLRInputStream in = new ANTLRInputStream();
-    }
 
+        Compiler compiler = new Compiler();
+        CharStream input = null;
+                
+        // try to open the file, complain if u cant find it
+        try {
+            if (args[0].equals("-S"))
+                input =  CharStreams.fromFileName(args[1]);
+            else 
+                throw new Exception("Check the syntax of the input, -S not found");
+
+            if (args[2].equals("-o"))
+                compiler.writer = new FileWriter(args[3]);
+            else
+                throw new Exception("Check the syntax of the input, -o not found");
+
+            } catch (Exception e) {
+            System.err.printf("Yo where the file @ ?\n%s\n", e.toString());
+        }
+
+        cLexer lexer = new cLexer(input);
+        CommonTokenStream tkSteam = new CommonTokenStream(lexer);
+        cParser parser = new cParser(tkSteam);
+        ParseTree tree = parser.compilationUnit();
+        
+        compiler.visit(tree);
+        
+        System.out.printf("Testing...\n");
+    }
+    
 }
