@@ -14,7 +14,7 @@ src/grammar/c*.class: src/grammar/c*.java
 src/grammar/c*.java: src/grammar/c.g4 
 	java $(JAVA_ARGS) -classpath $(ANTLR_LIB) org.antlr.v4.Tool -visitor src/grammar/c.g4 
 	
-.PHONY: clean grammar antlr
+.PHONY: clean grammar antlr forceClean
 
 src/grammar: src/grammar/c*.class
 
@@ -29,3 +29,12 @@ clean:
 	rm -rf src/*.class
 # rm -rf bin/*.class
 	rm -rf bin/*
+
+forceClean:
+# rm -rf grammar/*.java
+	sudo rm -rf src/grammar/*.interp
+	sudo rm -rf src/grammar/*.tokens
+	sudo rm -rf src/grammar/*.class
+	sudo rm -rf src/*.class
+# rm -rf bin/*.class
+	sudo rm -rf bin/*
