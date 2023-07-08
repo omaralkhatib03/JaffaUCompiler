@@ -1,0 +1,32 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Compiler",
+            "request": "launch",
+            "mainClass": "Compiler",
+            "projectName": "JaffaUCompiler_4b6dc4b9"
+        },
+        {
+            "name": "Debug ANTLR4 grammar",
+            "type": "antlr-debug",
+            "request": "launch",
+            "input": "./compiler_tests/_example/example.c",
+            "grammar": "src/grammar/c.g4",
+            "startRule": "compilationUnit",
+            "printParseTree": true,
+            "visualParseTree": true
+        }
+    ]
+
+}
