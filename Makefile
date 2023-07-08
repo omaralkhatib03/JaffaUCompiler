@@ -16,7 +16,7 @@ src/grammar/c*.java: src/grammar/c.g4
 
 .PHONY: clean grammar antlr forceClean
 
-src/grammar: src/grammar/c*.class
+grammar: src/grammar/c*.class
 
 antlr: src/grammar/c*.java
 
