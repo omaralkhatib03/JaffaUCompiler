@@ -1,5 +1,6 @@
-// Generated from grammar/c.g4 by ANTLR 4.13.0
+// Generated from src/grammar/c.g4 by ANTLR 4.13.0
 package grammar;
+
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Token;

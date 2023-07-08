@@ -1,5 +1,8 @@
 // import grammar.*;
 import grammar.*;
+import grammar.cLexer;
+import grammar.cParser;
+
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
@@ -12,6 +15,13 @@ import org.antlr.v4.runtime.tree.ParseTree;
 public class Compiler extends cBaseVisitor<String>
 {
     FileWriter writer;
+
+
+    public String visitCompilationUnit(cParser.CompilationUnitContext ctx) {
+        return visitChildren(ctx);
+    }
+
+
     public static void main(String[] args) throws IOException, NoSuchFileException 
     {
 
@@ -34,12 +44,27 @@ public class Compiler extends cBaseVisitor<String>
             System.err.printf("Yo where the file @ ?\n%s\n", e.toString());
         }
 
+        System.out.printf("%s\n", input.toString());
+
         cLexer lexer = new cLexer(input);
         CommonTokenStream tkSteam = new CommonTokenStream(lexer);
         cParser parser = new cParser(tkSteam);
         ParseTree tree = parser.compilationUnit();
         
-        compiler.visit(tree);
+        // compiler.visit(tree); // generate Code
+
+
+        // For Testing purposes  // all working
+        // compiler.writer.write(".text\n");
+        // compiler.writer.write(".globl f\n");
+        // compiler.writer.write("\n");
+        // compiler.writer.write("f:\n");
+        // compiler.writer.write("addi  t0, zero, 0\n");
+        // compiler.writer.write("addi  t0, t0,   5\n");
+        // compiler.writer.write("add   a0, zero, t0\n");
+        // compiler.writer.write("ret\n");
+
+        compiler.writer.close();
         
         System.out.printf("Testing...\n");
     }
