@@ -1,47 +1,11 @@
 package context;
 
-
+import symbols.*;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
 import static java.util.Map.entry;  
-class CommonSymbol
-{
-    protected String _id;
-    protected String _type;
-
-    public CommonSymbol(String id, String type)
-    {
-        this._id = id;
-        this._type = type;
-    }
-
-    public String getId()
-    {
-        return this._id;
-    }
-
-}
-
-
-class Scope extends CommonSymbol
-{
-    Boolean isFunction;
-    public Map <String, CommonSymbol> symbolTable = new HashMap<String, CommonSymbol>(); // symbol table for scope
-
-    public Scope(String id, String type, boolean isFunction)
-    {
-        super(id, type);
-        this.isFunction = isFunction;
-    }
-
-    public boolean isFunction()
-    {
-        return this.isFunction;
-    }
-
-}
 
 
 class RegisterManager
@@ -113,11 +77,11 @@ class RegisterManager
 
     public Map<String, BitSet> getMap(String rgType)
     {
-        if (rgType == "t")
+        if (rgType.equals("t"))
             return this.tmpRegs;
-        else if (rgType == "a")
+        else if (rgType.equals("a"))
             return this.argRegs;
-        else if (rgType == "s")
+        else if (rgType.equals("s"))
             return this.savedRegs;
         else
             return null;
@@ -125,9 +89,9 @@ class RegisterManager
 
     public int getMapIndex(String symbolType)
     {
-        if (symbolType == "int" || symbolType == "unsigned" || symbolType == "char")
+        if (symbolType.equals("int") || symbolType.equals("unsigned") || symbolType.equals("char"))
             return 0;
-        else if (symbolType == "float" || symbolType == "double")
+        else if (symbolType.equals("float") || symbolType.equals("double"))
             return 1;
         else
             return -1;
@@ -138,9 +102,12 @@ class RegisterManager
     {
         int index = (reg.charAt(0) == 'f') ? 1 : 0;
         if (index == 1)
+        {
             reg = reg.substring(1);
+        }
         
         Map<String, BitSet> rgMap = getMap(reg.substring(0, 1));
+        
         if (rgMap == null)
             throw new IllegalArgumentException("Invalid register type");
         
@@ -182,9 +149,8 @@ class RegisterManager
 public class Context 
 {
     // publix
-    public Map <String, String> headerStringsMap = new HashMap<String, String>(); // ArrayList: {headerString, offset, freeBytes}
-    public Map <String, String> bodyStringsMap = new HashMap<String, String>(); // body strings for compiled code
-
+    public Map <String, String> headerStringsMap = new HashMap<>(); // ArrayList: {headerString, offset, freeBytes}
+    public Map <String, String> bodyStringsMap = new HashMap<>(); // body strings for compiled code
 
     // privates
     private Stack<String> _functionScopeStack = new Stack<String>(); // stack of function names
@@ -192,6 +158,8 @@ public class Context
     private Map <String, Integer> _functionOffsets = new HashMap<String, Integer>();
     private Map <String, Scope> _FunctionSymbolTable = new HashMap<String, Scope>(); // symbol table
     private Map <String, CommonSymbol> _GlobalSymbolTable = new HashMap<String, CommonSymbol>(); // symbol table
+    private RegisterManager regManager = new RegisterManager();
+    private Stack <String> registerStack = new Stack<>();
 
     public void allocateMemory(int allocateMemory) // allocates memory to the stack for the current FunctionContext
     {
@@ -247,6 +215,31 @@ public class Context
     public int getFunctionOffset(String id)
     {
         return _functionOffsets.get(id);
+    }
+
+    public String getReg(String regType, String symbolType, boolean onStack)
+    {
+        String regOut = this.regManager.getReg(regType, symbolType);
+        if (onStack)
+            this.registerStack.push(regOut);
+        return regOut;
+    }
+
+    public void setUsed(String reg, boolean onStack)
+    {
+        this.regManager.setUsed(reg);
+        if (onStack)
+            this.registerStack.push(reg);
+    }
+
+    public String getTopReg()
+    {
+        return this.registerStack.peek();
+    }
+
+    public Scope getCurrentFunction()
+    {
+        return _FunctionSymbolTable.get(_functionScopeStack.peek());
     }
 
 
