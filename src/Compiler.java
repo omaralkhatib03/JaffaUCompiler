@@ -1,5 +1,6 @@
 import context.*;
 import grammar.*;
+import symbols.*;
 import grammar.cLexer;
 import grammar.cParser;
 
@@ -70,6 +71,7 @@ public class Compiler extends cBaseVisitor<String>
         this.ctx.addScope(functionName, functionType, true);
         this.ctx.headerStringsMap.put(functionName, functionHeaderString);
         this.ctx.bodyStringsMap.put(functionName, functionBodyString);
+        visit(ctx.compoundStatement());
 
         return "";
     }
@@ -107,6 +109,46 @@ public class Compiler extends cBaseVisitor<String>
 
         return  "";
     }
+
+    @Override
+    public String visitJumpStatement(cParser.JumpStatementContext ctx)
+    {
+        String jType = ctx.jtype.getText();
+        
+        if (debug)
+        {
+            System.out.printf("###################### Jump Statement ################### \n");
+            System.out.printf("jump type: %s\n", jType);
+            System.out.printf("Current function type: %s\n", this.ctx.getCurrentFunction().getType());
+            System.out.printf("###################### Jump Statement END ################### \n");
+        }
+
+
+        switch (jType) {
+            case "return":
+            {
+                this.ctx.setUsed("a0", true); // set a0 as used and push it on the stack 
+                this.ctx.getReg("a", this.ctx.getCurrentFunction().getType(), true);
+                visit(ctx.expression());
+            }
+            break;
+            case "break":
+            {
+
+            }
+            break;
+            case "continue":
+            {
+
+            }
+            break;
+            default: // TODO: goto jump instruction
+            break;
+        }
+        
+        return "";
+    }
+
 
     public static void main(String[] args) throws IOException, NoSuchFileException 
     {
@@ -155,7 +197,7 @@ public class Compiler extends cBaseVisitor<String>
         // writer.write("add   a0, zero, t0\n");
         // writer.write("ret\n");
         
-        System.out.printf("Testing...\n");
+        System.out.printf("Compiled !\n");
     }
     
 
