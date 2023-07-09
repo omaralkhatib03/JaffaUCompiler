@@ -126,11 +126,12 @@ public class Compiler extends cBaseVisitor<String>
         return "";
     }
 
-    public CommonSymbol declareVariable(String id, cParser.DeclaratorContext ctx)
+    private CommonSymbol declareVariable(String id, cParser.DeclaratorContext ctx, boolean addToQueue)
     {
         Variable var = new Variable(id, this.ctx.getDeclarationMode(), this.ctx.getCurrentFunction().getCurrentOffset()); // create variable
         this.ctx.getCurrentFunction().decrementOffset(typeSizeMap.get(this.ctx.getDeclarationMode())); // decrement offset by size of variable
-        this.ctx.addInitializer(var); // add variable to initializer queue
+        if (addToQueue)
+            this.ctx.addInitializer(var); // add variable to initializer queue
         return var;
     } 
 
@@ -168,7 +169,7 @@ public class Compiler extends cBaseVisitor<String>
         } 
         else if (ctx.directDeclarator().varDecl != null)
         {
-            symbol = declareVariable(id, ctx);
+            symbol = declareVariable(id, ctx, true);
         }
         else
         {
@@ -195,6 +196,7 @@ public class Compiler extends cBaseVisitor<String>
     @Override 
     public String visitDirectDeclarator(cParser.DirectDeclaratorContext ctx)
     {
+        // return id
         String id = "";
         if (ctx.directDeclarator() != null)
             id = visit(ctx.directDeclarator());
@@ -235,6 +237,59 @@ public class Compiler extends cBaseVisitor<String>
     /////////////////////////////////////////////////////////////////////
     ////////////////////////   Declarations END   ///////////////////////
     /////////////////////////////////////////////////////////////////////
+    
+    @Override
+    public String visitParameterDeclaration(cParser.ParameterDeclarationContext ctx)
+    {
+        String id = visit(ctx.declarator().directDeclarator());
+        
+        if (id == null || id.equals(""))
+            throw new RuntimeException("Error: Cannot find parameter id");
+        
+        String type = getType(ctx.declarationSpecifiers());
+        
+        if (!typeSizeMap.keySet().contains(type))
+            throw new RuntimeException("Error: Invalid parameter type");
+
+        cParser.DeclaratorContext declarator = ctx.declarator(); // picked up declarator, this has to exist
+        if (declarator == null)        
+            throw new RuntimeException("Error: Cannot find declarator, check syntax");
+
+        CommonSymbol symbol = null;
+
+        if (declarator.pointer() != null) // if there is a pointer, we need to add it to the type
+        {
+            // TODO: prepare pointer parameter
+        }
+        else if (declarator.directDeclarator().arrayDecl != null)
+        {
+            // TODO: prepare array parameter (with size) (see if u can treat both cases with pointers)
+        } 
+        else if (declarator.directDeclarator().arrayParam != null)
+        {
+            // TODO: prepare array parameter (without size) (see if u can treat both cases with pointers)
+        }
+        else if (declarator.directDeclarator().varDecl != null)
+        {
+            symbol = declareVariable(id, declarator, false);
+        }
+        else
+        {
+            // throw new RuntimeException("Error: Cannot prepare paramter symbol, check syntax");
+            return "";
+        }
+        
+        // add parameter to function list
+        this.ctx.getCurrentFunction().addParameter(symbol);
+        return "";
+    }
+
+
+    private void prepareParameter(cParser.ParameterTypeListContext ctx)
+    {
+        visitChildren(ctx); // visit all children
+    }
+
 
     @Override 
     public String visitFunctionDefinition(cParser.FunctionDefinitionContext ctx) 
@@ -261,15 +316,16 @@ public class Compiler extends cBaseVisitor<String>
             System.out.printf("Return Type: %s\n", functionType);
             // System.out.printf("Function Header: \n%s\n", functionHeaderString);
             // System.out.printf("Function Body: \n%s\n", functionBodyString);
-            System.out.printf("###################### Function Declaration END ################### \n");
-
         }
 
         this.ctx.addScope(functionName, functionType, true);
         this.ctx.headerStringsMap.put(functionName, functionHeaderString);
         this.ctx.bodyStringsMap.put(functionName, functionBodyString);
-        visit(ctx.compoundStatement());
-
+        // get parameters ready
+        if (ctx.declarator().directDeclarator().param != null)
+            prepareParameter(ctx.declarator().directDeclarator().param);
+        if (this.verbose) System.out.printf("###################### Function Declaration END ################### \n");
+        visit(ctx.compoundStatement());        
         return "";
     }
 
@@ -553,7 +609,6 @@ public class Compiler extends cBaseVisitor<String>
 
     private String writeImmediateInstruction(String instruction, String registera, String registerb, int immediate)
     {
-
         return String.format("%s %s, %s, %d", instruction, registera, registerb, immediate); 
     }
 

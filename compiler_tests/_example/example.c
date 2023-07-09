@@ -1,6 +1,10 @@
-int f()
+int f(int a, int b)
 {
-    int a;
-    int x, y, z=12345;
-    return x;
+    return a+b;
+}
+
+
+int foo(int a, int b[10], int *c)
+{
+    return 2;
 }

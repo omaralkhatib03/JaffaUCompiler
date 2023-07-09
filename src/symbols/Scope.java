@@ -1,6 +1,7 @@
 package symbols;
 
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Scope extends CommonSymbol
@@ -9,6 +10,7 @@ public class Scope extends CommonSymbol
     Boolean returningContext;
     public Map <String, CommonSymbol> symbolTable = new HashMap<String, CommonSymbol>(); // symbol table for scope
     int currentOffset;
+    public ArrayList<CommonSymbol> parameters = new ArrayList<CommonSymbol>(); // parameters for function
 
 
     public Scope(String id, String type, boolean isFunction)
@@ -66,6 +68,11 @@ public class Scope extends CommonSymbol
         {
             System.out.println(entry.getValue().getId() + " " + entry.getValue().getType() + " " + entry.getValue().getOffset());
         }
+    }
+
+    public void addParameter(CommonSymbol parameter)
+    {
+        this.parameters.add(parameter);
     }
 
 }

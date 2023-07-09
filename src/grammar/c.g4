@@ -13,7 +13,7 @@ postfixExpression
     :
     primaryExpression
     ('[' expression ']'
-    | '(' argumentExpressionList? ')'
+    | '(' argumentExpressionList? ')' // function calls
     | ('.' | '->') Identifier
     | '++'
     | '--'
@@ -222,10 +222,10 @@ declarator
 directDeclarator // might need to change back idk yet, got it from officical ansi c90 grammar
     :   varDecl=Identifier // variable
     |   '(' declarator ')' // idk
-	|   arrayDecl=directDeclarator '[' constantExpression ']' // array
-	|   directDeclarator '[' ']' // array ?? wth
-	|   funcCall=directDeclarator '(' param=parameterTypeList ')' // functioncall
-	|   directDeclarator structDecl='(' identifierList? ')' // identifierList is optional, struct and classes ?? idk broski
+	|   directDeclarator '[' arrayDecl=constantExpression ']' // array
+	|   arrayParam=directDeclarator '[' ']' // array parameter
+	|   funcCall=directDeclarator '(' param=parameterTypeList ')' // function with parameters
+	|   directDeclarator structDecl='(' identifierList? ')' // identifierList is optional, struct, classes and functions with no params
     ;
 
 
