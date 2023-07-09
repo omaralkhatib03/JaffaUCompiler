@@ -371,10 +371,10 @@ iterationStatement
 //     ;
 
 jumpStatement
-    :   ('goto' Identifier
-    |   'continue'
-    |   'break'
-    |   'return' expression?
+    :   (jtype='goto' Identifier
+    |   jtype='continue'
+    |   jtype='break'
+    |   jtype='return' expression?
     )
     ';'
     ;
