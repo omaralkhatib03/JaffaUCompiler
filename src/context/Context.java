@@ -97,8 +97,7 @@ class RegisterManager
             return -1;
     }
 
-
-    public void setUsed(String reg)
+    public void setReg(String reg, Boolean value)
     {
         int index = (reg.charAt(0) == 'f') ? 1 : 0;
         if (index == 1)
@@ -111,7 +110,7 @@ class RegisterManager
         if (rgMap == null)
             throw new IllegalArgumentException("Invalid register type");
         
-        rgMap.get(reg).set(index);
+        rgMap.get(reg).set(index, value);
     }
 
     public String getReg(String rgType, String symbolType)
@@ -133,7 +132,7 @@ class RegisterManager
 
             if (!entry.getValue().get(index))
             {   
-                entry.getValue().set(index);
+                entry.getValue().set(index, true);
                 return (index == 1) ? "f"+entry.getKey() : entry.getKey();
             }
         }
@@ -141,7 +140,46 @@ class RegisterManager
         return "-1"; // no avialable registers
     }
 
+    public boolean getRegStatus(String reg)
+    {
+        int index = (reg.charAt(0) == 'f') ? 1 : 0;
+        if (index == 1)
+        {
+            reg = reg.substring(1);
+        }
+        
+        Map<String, BitSet> rgMap = getMap(reg.substring(0, 1));
+        if (rgMap == null)
+            throw new IllegalArgumentException("Invalid register type");
+        
+        return rgMap.get(reg).get(index);
+    }
 
+    ///////////////////////////////////////////////////////////////////
+    ////////////////          Printer             /////////////////////
+    ///////////////////////////////////////////////////////////////////
+
+
+    public void printRegMaps()
+    {
+        System.out.println("tmpRegs: ");
+        for (Map.Entry<String, BitSet> entry : tmpRegs.entrySet())
+        {
+            System.out.println(entry.getKey() + " : " + entry.getValue());
+        }
+
+        System.out.println("argRegs: ");
+        for (Map.Entry<String, BitSet> entry : argRegs.entrySet())
+        {
+            System.out.println(entry.getKey() + " : " + entry.getValue());
+        }
+
+        System.out.println("savedRegs: ");
+        for (Map.Entry<String, BitSet> entry : savedRegs.entrySet())
+        {
+            System.out.println(entry.getKey() + " : " + entry.getValue());
+        }
+    }
 
 }
 
@@ -227,7 +265,7 @@ public class Context
 
     public void setUsed(String reg, boolean onStack)
     {
-        this.regManager.setUsed(reg);
+        this.regManager.setReg(reg, true);
         if (onStack)
             this.registerStack.push(reg);
     }
@@ -242,6 +280,36 @@ public class Context
         return _FunctionSymbolTable.get(_functionScopeStack.peek());
     }
 
+    public void setFunctionReturn(String id, boolean isReturning)
+    {
+        _FunctionSymbolTable.get(id).setReturning(isReturning);
+    }
+
+    public String popRegisterStack()
+    {
+        return this.registerStack.pop();
+    }
+
+    public String clearReg(String reg)
+    {
+        this.regManager.setReg(reg, false);
+        return reg;
+    }
+
+    public String clearTopOfStack()
+    {
+        String tmp = this.registerStack.pop();
+        if (!regManager.getRegStatus(tmp))
+            throw new IllegalArgumentException("Register not in use");
+        this.regManager.setReg(tmp, false);
+        return tmp;
+    }
+
+
+    public void writeBodyString(String id, String body)
+    {
+        this.bodyStringsMap.put(id, this.bodyStringsMap.get(id) + body);
+    }
 
     //////////////////////////////////////////////////
     ////////////////     Printers     ////////////////
@@ -255,4 +323,21 @@ public class Context
         }
     }
 
+    public void printGlobalSymbolTable()
+    {
+        for (String i : _GlobalSymbolTable.keySet()) 
+        {
+            System.out.printf("Global Name: %s\n", i);
+        }
+    }
+
+    public void printRegMaps()
+    {
+        this.regManager.printRegMaps();
+    }
+
+    public void printRegisterStackStatus()
+    {
+        System.out.printf("Register Stack Size: %s\n", this.registerStack.size());
+    }
 }

@@ -1,9 +1,5 @@
 package symbols;
 
-import java.util.HashMap;
-import java.util.Map;
-
-
 public class CommonSymbol 
 {
     protected String _id;

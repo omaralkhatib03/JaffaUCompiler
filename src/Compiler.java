@@ -1,8 +1,8 @@
 import context.*;
 import grammar.*;
-import symbols.*;
 import grammar.cLexer;
 import grammar.cParser;
+import symbols.Scope;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -62,8 +62,8 @@ public class Compiler extends cBaseVisitor<String>
             System.out.printf("###################### Function Declaration ################### \n");
             System.out.printf("Function Name: %s\n", functionName);
             System.out.printf("Function Type: %s\n", functionType);
-            System.out.printf("Function Header: \n%s\n", functionHeaderString);
-            System.out.printf("Function Body: \n%s\n", functionBodyString);
+            // System.out.printf("Function Header: \n%s\n", functionHeaderString);
+            // System.out.printf("Function Body: \n%s\n", functionBodyString);
             System.out.printf("###################### Function Declaration END ################### \n");
 
         }
@@ -83,11 +83,10 @@ public class Compiler extends cBaseVisitor<String>
         if (this.debug)
         {
             System.out.printf("###################### Compilation Unit ################### \n");
-            
             printFunctionSymbolTable();
-
             System.out.printf("###################### Compilation Unit END ################### \n");
-
+            this.ctx.printRegMaps();
+            this.ctx.printRegisterStackStatus();
         }
 
         try {
@@ -110,6 +109,15 @@ public class Compiler extends cBaseVisitor<String>
         return  "";
     }
 
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////         Jump Statements       //////////////////////
+    ///////////////////////////////////////////////////////////////////////
+    
+    public void intReturn(String valueReg, cParser.JumpStatementContext ctx)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeMvInstruction("a0", valueReg));
+    }
+
     @Override
     public String visitJumpStatement(cParser.JumpStatementContext ctx)
     {
@@ -128,8 +136,39 @@ public class Compiler extends cBaseVisitor<String>
             case "return":
             {
                 this.ctx.setUsed("a0", true); // set a0 as used and push it on the stack 
-                this.ctx.getReg("a", this.ctx.getCurrentFunction().getType(), true);
+                String exprReg = this.ctx.getReg("a", this.ctx.getCurrentFunction().getType(), true); // get another reg and push it on the stack
+                this.ctx.setFunctionReturn(this.ctx.getCurrentFunction().getId(), true);
                 visit(ctx.expression());
+                this.ctx.setFunctionReturn(this.ctx.getCurrentFunction().getId(), false);
+                this.ctx.clearTopOfStack();
+                switch (this.ctx.getCurrentFunction().getType()) {
+                    case "double":
+                    {
+
+                    }
+                    break;
+                    case "float":
+                    {
+
+                    }
+                    break;
+                    case "char":
+                    {
+
+                    }
+                    break;
+                    case "unsigned":
+                    {
+
+                    }
+                    break;
+                    default: // int 
+                    {
+                        intReturn(exprReg, ctx);
+                    }
+                    break;
+                }
+                this.ctx.clearTopOfStack(); // clears a0
             }
             break;
             case "break":
@@ -148,6 +187,90 @@ public class Compiler extends cBaseVisitor<String>
         
         return "";
     }
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////       Jump Statements END      /////////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////      Primary EXPRESSIONS      //////////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+    public void constantIsReturning(cParser.PrimaryExpressionContext ctx)
+    {
+        Scope currentFunction = this.ctx.getCurrentFunction();
+        String currentFunctionBody = this.ctx.bodyStringsMap.get(currentFunction.getId());
+        String out = "";
+        switch (currentFunction.getType()) {
+            case "float":
+            {
+                
+            }
+            break;
+            case "double":
+            {
+
+            }
+            break;
+            case "char":
+            {
+
+            }
+            break;
+            case "unsigned":
+            {
+
+            }
+            break;
+            default: // int default
+            {
+                out = String.format("%s\n", writeLiInstruction(this.ctx.getTopReg(), ctx.Constant().getText()));
+            }
+            break;
+        }
+        this.ctx.bodyStringsMap.put(currentFunction.getId(), currentFunctionBody + out);
+    }
+
+
+    public void primaryExpressionConstant(cParser.PrimaryExpressionContext ctx)
+    {
+        boolean isReturning = this.ctx.getCurrentFunction().isReturning();
+        if (isReturning)
+        {
+            constantIsReturning(ctx);
+        }
+        else
+        {
+            // handle
+        }
+    }
+
+    @Override
+    public String visitPrimaryExpression(cParser.PrimaryExpressionContext ctx)
+    {
+        if (ctx.Identifier() != null)
+        {
+            // TODO
+        }
+        else if (ctx.Constant() != null)
+        {
+            primaryExpressionConstant(ctx);
+            return "Constant: Done!\n";
+        }
+        else if (ctx.StringLiteral() != null)
+        {
+            // TODO
+        }
+        else if (ctx.expression() != null)
+        {
+            // TODO
+        }
+        return "";
+    }
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////      Primary EXPRESSIONS END     ///////////////////
+    ///////////////////////////////////////////////////////////////////////
 
 
     public static void main(String[] args) throws IOException, NoSuchFileException 
@@ -224,14 +347,24 @@ public class Compiler extends cBaseVisitor<String>
     }
 
 
-    public String writeImmediateInstruction(String instruction, String registera, String registerb, int immediate)
+    private String writeImmediateInstruction(String instruction, String registera, String registerb, int immediate)
     {
 
         return String.format("%s %s, %s, %d", instruction, registera, registerb, immediate); 
     }
 
-    public String writeSwLwInstruction(String instruction, String registera, int immediate, String registerb)
+    private String writeSwLwInstruction(String instruction, String registera, int immediate, String registerb)
     {
         return String.format("%s %s, %d(%s)", instruction, registera, immediate, registerb); 
+    }
+
+    private String writeLiInstruction(String reg, String immediate)
+    {
+        return String.format("li %s, %s", reg, immediate);
+    }
+
+    private String writeMvInstruction(String regdst, String regsrc)
+    {
+        return String.format("mv %s, %s", regdst, regsrc);
     }
 }
