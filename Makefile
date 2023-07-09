@@ -4,7 +4,7 @@ JAVA_ARGS=-XX:+ShowCodeDetailsInExceptionMessages
 JAVAC_ARGS=-Xdiags:verbose
 OUTPUT_DIR=./bin
 
-bin/Compiler.class: src/Compiler.java src/grammar/c*.class 
+bin/Compiler.class: src/Compiler.java src/context/*.java src/symbols/*.java src/grammar/c*.class 
 	javac $(JAVAC_ARGS) -d $(OUTPUT_DIR) --class-path $(COMPILER_PATH) src/Compiler.java
 
 src/grammar/c*.class: src/grammar/c*.java
