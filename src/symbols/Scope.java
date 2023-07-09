@@ -1,9 +1,8 @@
 package symbols;
 
 import java.util.Map;
-
-import org.antlr.v4.parse.ANTLRParser.prequelConstruct_return;
-
+import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Scope extends CommonSymbol

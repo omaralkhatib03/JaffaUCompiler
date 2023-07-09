@@ -349,7 +349,7 @@ public class Compiler extends cBaseVisitor<String>
                 switch (this.ctx.getCurrentFunction().getType()) {
                     case "double":
                     {
-
+                        // TODO: implement double return
                     }
                     break;
                     case "float":
@@ -359,12 +359,12 @@ public class Compiler extends cBaseVisitor<String>
                     break;
                     case "char":
                     {
-
+                        // TODO: implement char return
                     }
                     break;
                     case "unsigned":
                     {
-
+                        // TODO: implement unsigned return
                     }
                     break;
                     default: // int 
@@ -378,12 +378,12 @@ public class Compiler extends cBaseVisitor<String>
             break;
             case "break":
             {
-
+                // TODO: implement break
             }
             break;
             case "continue":
             {
-
+                // TODO: implement continue
             }
             break;
             default: // TODO: goto jump instruction
@@ -409,22 +409,22 @@ public class Compiler extends cBaseVisitor<String>
         switch (currentFunction.getType()) {
             case "float":
             {
-                
+                // TODO: implement float constant
             }
             break;
             case "double":
             {
-
+                // TODO: implement double constant
             }
             break;
             case "char":
             {
-
+                // TODO: implement char constant
             }
             break;
             case "unsigned":
             {
-
+                // TODO: implement unsigned constant
             }
             break;
             default: // int default
