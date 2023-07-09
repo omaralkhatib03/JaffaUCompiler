@@ -88,7 +88,7 @@ conditionalExpression
 
 assignmentExpression
     :   conditionalExpression
-    |   unaryExpression assignmentOperator assignmentExpression
+    |   unaryExpression assOp=assignmentOperator assignmentExpression
     ;
 
 assignmentOperator
