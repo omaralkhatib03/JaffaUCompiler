@@ -1,6 +1,9 @@
 package symbols;
 
 import java.util.Map;
+
+import org.antlr.v4.parse.ANTLRParser.prequelConstruct_return;
+
 import java.util.HashMap;
 
 public class Scope extends CommonSymbol
@@ -58,4 +61,14 @@ public class Scope extends CommonSymbol
     {
         this.currentOffset -= offset;
     }
+
+    public void printSymbolTable()
+    {
+        System.out.println("Symbol table for scope " + this.getId() + ":");
+        for (Map.Entry<String, CommonSymbol> entry : this.symbolTable.entrySet())
+        {
+            System.out.println(entry.getValue().getId() + " " + entry.getValue().getType() + " " + entry.getValue().getOffset());
+        }
+    }
+
 }

@@ -384,4 +384,17 @@ public class Context
     {
         System.out.printf("Register Stack Size: %s\n", this.registerStack.size());
     }
+
+    public void printAllSymbolTables()
+    {
+        System.out.println("Printing Function Symbol Table");
+        printFunctionSymbolTable();
+        System.out.println("Printing Global Symbol Table");
+        printGlobalSymbolTable();
+        for (String i : _FunctionSymbolTable.keySet()) 
+        {
+            System.out.printf("Printing Local Symbol Table for Function: %s\n", i);
+            _FunctionSymbolTable.get(i).printSymbolTable();
+        }
+    }
 }

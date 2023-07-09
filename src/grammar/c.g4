@@ -117,7 +117,7 @@ declarationSpecifiers2 // what the fuck ?
 
 declarationSpecifier 
     :   storageClassSpecifier
-    |   typeSpecifier
+    |   typeSpec=typeSpecifier
     |   typeQualifier
     ;
 
@@ -138,7 +138,7 @@ storageClassSpecifier
     ;
 
 typeSpecifier
-    :   'void'
+    :   type=('void'
     |   'char'
     |   'short'
     |   'int'
@@ -146,10 +146,10 @@ typeSpecifier
     |   'float'
     |   'double'
     |   'signed'
-    |   'unsigned'
-    |   structOrUnionSpecifier
-    |   enumSpecifier
-    |   typedefName
+    |   'unsigned')
+    |   structSpec=structOrUnionSpecifier
+    |   enumSpec=enumSpecifier
+    |   typedef=typedefName
     ;
 
 structOrUnionSpecifier

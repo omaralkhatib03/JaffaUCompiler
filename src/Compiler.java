@@ -43,32 +43,88 @@ public class Compiler extends cBaseVisitor<String>
         }
     }
 
+    /////////////////////////////////////////////////////////////////////
+    ////////////////////////   Initialization   /////////////////////////
+    /////////////////////////////////////////////////////////////////////
+
     @Override
-    public String visitDeclaration(cParser.DeclarationContext ctx)
+    public String visitInitDeclarator(cParser.InitDeclaratorContext ctx)
     {
-        String type = ctx.declarationSpecifiers().getText();
-        if (!typeSizeMap.keySet().contains(type))
-            throw new RuntimeException("Error: Invalid type");
-        
-        this.ctx.setDeclarationMode(type); // we are not declaring symbols of this type
-        visit(ctx.initDeclaratorList());
-        this.ctx.setDeclarationMode(""); // we have finished declaring the symbols
-        
+        if (ctx.declarator()!=null)
+            visit(ctx.declarator());
+        if (ctx.initializer() != null)
+            visit(ctx.initializer());
         return "";
     }
 
+    public void storeSymbol(CommonSymbol symbol, String reg)
+    {
+        switch (symbol.getType()) 
+        {
+            case "char":
+            {
+                
+            }
+            break;
+            case "double":
+            {
+                // TODO: handle double variable init
+            }
+            break;
+            case "float":
+            {
+                // TODO: handle float variable init
+            }
+            break;
+            case "unsigned":
+            {
+                // TODO: handle unsigned variable init
+            }
+            break;
+            default: // int
+            {
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("sw", reg, symbol.getOffset(), "s0") + "\n");
+            }
+            break;
+        }
+    }
 
-    @Override 
-    public String visitInitDeclaratorList(cParser.InitDeclaratorListContext ctx) 
-    { 
-        visitChildren(ctx);
+    @Override
+    public String visitInitializer(cParser.InitializerContext ctx)
+    {
+        CommonSymbol symbol = this.ctx.getFrontOfInitQueue();
+        String reg = this.ctx.getReg("t", symbol.getType(), true);
+        visit(ctx.assignmentExpression()); // compile into the register
+        storeSymbol(symbol, reg);
+        this.ctx.clearTopOfStack();
         return "";
     }
-    
+    /////////////////////////////////////////////////////////////////////
+    /////////////////////   Initialization END   ////////////////////////
+    /////////////////////////////////////////////////////////////////////
+
     
     /////////////////////////////////////////////////////////////////////
     ////////////////////////   Declarations   ///////////////////////////
     /////////////////////////////////////////////////////////////////////
+
+    @Override
+    public String visitDeclaration(cParser.DeclarationContext ctx)
+    {
+        String type = getType(ctx.declarationSpecifiers());
+                
+        if (!typeSizeMap.keySet().contains(type))
+            throw new RuntimeException("Error: Invalid type");
+
+        this.ctx.setDeclarationMode(type); // we are not declaring symbols of this type
+        if (ctx.initDeclaratorList() != null)
+            visit(ctx.initDeclaratorList());
+        else 
+            visit(ctx.declarationSpecifiers()); // we are declaring a single variable
+        this.ctx.setDeclarationMode(""); // we have finished declaring the symbols
+        
+        return "";
+    }
 
     public CommonSymbol declareVariable(String id, cParser.DeclaratorContext ctx)
     {
@@ -116,8 +172,11 @@ public class Compiler extends cBaseVisitor<String>
         }
         else
         {
-            throw new RuntimeException("Error: Cannot declare symbol, check syntax");
+            // throw new RuntimeException("Error: Cannot declare symbol, check syntax");
+            return "";
         }
+
+        // System.out.printf("Declared: %s", id);
 
         // add declared symbol to the correct scope
         if (this.ctx.isGlobalScope())
@@ -145,6 +204,34 @@ public class Compiler extends cBaseVisitor<String>
         return id;
     }
 
+    @Override
+    public String visitTypedefName(cParser.TypedefNameContext ctx)
+    {
+        if (this.ctx.getDeclarationMode().equals(""))
+        {
+            // TODO: Implement actual typedef here with early return instead of throw 
+            throw new RuntimeException("Error: Cannot declare symbol outside of declaration, type not found");
+        }
+    
+        String id = ctx.Identifier().getText();
+        if (id == null)
+            throw new RuntimeException("Error: Cannot find id");
+        
+        Variable symbol = new Variable(id, this.ctx.getDeclarationMode(), this.ctx.getCurrentFunction().getCurrentOffset()); // create variable
+        this.ctx.getCurrentFunction().decrementOffset(typeSizeMap.get(this.ctx.getDeclarationMode())); // decrement offset by size of variable
+
+        if (this.ctx.isGlobalScope())
+        {
+            // TODO: implement global scope
+        }
+        else
+        {
+            this.ctx.addLocalSymbol(symbol); // adding global symbol
+        }
+        
+        return "";
+    }
+
     /////////////////////////////////////////////////////////////////////
     ////////////////////////   Declarations END   ///////////////////////
     /////////////////////////////////////////////////////////////////////
@@ -153,7 +240,7 @@ public class Compiler extends cBaseVisitor<String>
     public String visitFunctionDefinition(cParser.FunctionDefinitionContext ctx) 
     { 
         String functionName = "";
-        String functionType = ctx.declarationSpecifiers().getText();
+        String functionType = getType(ctx.declarationSpecifiers());
         
         if (!typeSizeMap.keySet().contains(functionType))
             throw new RuntimeException("Error: Invalid function type");
@@ -197,6 +284,7 @@ public class Compiler extends cBaseVisitor<String>
             System.out.printf("###################### Compilation Unit END ################### \n");
             this.ctx.printRegMaps();
             this.ctx.printRegisterStackStatus();
+            this.ctx.printAllSymbolTables();
         }
 
         try {
@@ -218,6 +306,8 @@ public class Compiler extends cBaseVisitor<String>
 
         return  "";
     }
+
+
 
     ///////////////////////////////////////////////////////////////////////
     //////////////////         Jump Statements       //////////////////////
@@ -311,7 +401,7 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////      Primary EXPRESSIONS      //////////////////////
     ///////////////////////////////////////////////////////////////////////
 
-    public void constantIsReturning(cParser.PrimaryExpressionContext ctx)
+    public void primaryExpressionConstant(cParser.PrimaryExpressionContext ctx)
     {
         Scope currentFunction = this.ctx.getCurrentFunction();
         String currentFunctionBody = this.ctx.bodyStringsMap.get(currentFunction.getId());
@@ -346,26 +436,12 @@ public class Compiler extends cBaseVisitor<String>
         this.ctx.bodyStringsMap.put(currentFunction.getId(), currentFunctionBody + out);
     }
 
-
-    public void primaryExpressionConstant(cParser.PrimaryExpressionContext ctx)
-    {
-        boolean isReturning = this.ctx.getCurrentFunction().isReturning();
-        if (isReturning)
-        {
-            constantIsReturning(ctx);
-        }
-        else
-        {
-            // handle
-        }
-    }
-
     @Override
     public String visitPrimaryExpression(cParser.PrimaryExpressionContext ctx)
     {
         if (ctx.Identifier() != null)
         {
-            // TODO
+            // TODO: implement primary expression identifier
         }
         else if (ctx.Constant() != null)
         {
@@ -374,11 +450,11 @@ public class Compiler extends cBaseVisitor<String>
         }
         else if (ctx.StringLiteral() != null)
         {
-            // TODO
+            // TODO: implement primary expression string literal
         }
         else if (ctx.expression() != null)
         {
-            // TODO
+            // TODO: implement primary expression expression
         }
         return "";
     }
@@ -395,7 +471,8 @@ public class Compiler extends cBaseVisitor<String>
         CharStream input = null;
 
         // try to open the file, complain if u cant find it
-        try {
+        try 
+        {
             if (args[0].equals("-S"))
                 input =  CharStreams.fromFileName(args[1]);
             else 
@@ -412,13 +489,16 @@ public class Compiler extends cBaseVisitor<String>
                 else
                     throw new Exception("Unkown option " + args[4]);
                 
-            } catch (Exception e) {
-            System.err.printf("Yo where the file @ ?\n%s\n", e.toString());
+        } 
+        catch (Exception e) 
+        {
+            System.err.printf("An Exception occured: %s\n", e.toString());
+            System.exit(1);
         }
 
         Compiler compiler = new Compiler(verbose, outputPath);
 
-        // System.out.printf("%s\n", input.toString());
+        System.out.printf("%s\n", input.toString());
 
         cLexer lexer = new cLexer(input);
         CommonTokenStream tkSteam = new CommonTokenStream(lexer);
@@ -442,7 +522,7 @@ public class Compiler extends cBaseVisitor<String>
         String out = "";
         if (offset > 2032)
         {
-            ; // TODO: handle this case
+            ; // TODO: handle stack decrement when offset is greater than 2032
         }
         else
         {   
@@ -459,7 +539,7 @@ public class Compiler extends cBaseVisitor<String>
         String out = "";
         if (offset > 2032)
         {
-            ; // TODO: handle this case
+            ; // TODO: handle stack increment when offset is greater than 2032
         }
         else
         {   
@@ -490,6 +570,24 @@ public class Compiler extends cBaseVisitor<String>
     private String writeMvInstruction(String regdst, String regsrc)
     {
         return String.format("mv %s, %s", regdst, regsrc);
+    }
+
+    private String getType(cParser.DeclarationSpecifiersContext ctx)
+    {
+        for (int i = 0; i < ctx.getChildCount(); i++)
+        {
+            if (ctx.getChild(i).getText().equals("int"))
+                return "int";
+            else if (ctx.getChild(i).getText().equals("float"))
+                return "float";
+            else if (ctx.getChild(i).getText().equals("double"))
+                return "double";
+            else if (ctx.getChild(i).getText().equals("char"))
+                return "char";
+            else if (ctx.getChild(i).getText().equals("unsigned"))
+                return "unsigned";  
+        }
+        return "";
     }
 
 }

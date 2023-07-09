@@ -20,7 +20,12 @@ public class CommonSymbol
     public String getType()
     {
         return this._type;
-    }    
+    }   
+    
+    public int getOffset()
+    {
+        return _offset;
+    }
 }
 
 
