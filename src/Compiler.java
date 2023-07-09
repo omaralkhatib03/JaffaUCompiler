@@ -90,12 +90,12 @@ public class Compiler extends cBaseVisitor<String>
         }
 
         try {
-            // String functionName = this.ctx.headerStringsMap.keySet().iterator().next();
             for (String i : this.ctx.headerStringsMap.keySet()) 
             {
                 String stackDecStr = writeStackDecrement(this.ctx.getFunctionOffset(i));
+                String stackIncStr = writeStackIncrement(this.ctx.getFunctionOffset(i));
                 writer.write(this.ctx.headerStringsMap.get(i) + stackDecStr);
-                writer.write(this.ctx.bodyStringsMap.get(i));
+                writer.write(this.ctx.bodyStringsMap.get(i) + stackIncStr);
                 writer.write("\n");
             }    
 
@@ -115,7 +115,7 @@ public class Compiler extends cBaseVisitor<String>
     
     public void intReturn(String valueReg, cParser.JumpStatementContext ctx)
     {
-        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeMvInstruction("a0", valueReg));
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeMvInstruction("a0", valueReg) + "\n");
     }
 
     @Override
@@ -310,15 +310,6 @@ public class Compiler extends cBaseVisitor<String>
         
         compiler.visit(tree); // generate Code
 
-        // For Testing purposes  // all working
-        // writer.write(".text\n");
-        // writer.write(".globl f\n");
-        // writer.write("\n");
-        // writer.write("f:\n");
-        // writer.write("addi  t0, zero, 0\n");
-        // writer.write("addi  t0, t0,   5\n");
-        // writer.write("add   a0, zero, t0\n");
-        // writer.write("ret\n");
         
         System.out.printf("Compiled !\n");
     }
@@ -329,8 +320,7 @@ public class Compiler extends cBaseVisitor<String>
         this.ctx.printFunctionSymbolTable();
     }
 
-
-    public String writeStackDecrement(int offset)
+    private String writeStackDecrement(int offset)
     {
         String out = "";
         if (offset > 2032)
@@ -340,12 +330,29 @@ public class Compiler extends cBaseVisitor<String>
         else
         {   
             out = String.format("%s%s\n", out, writeImmediateInstruction("addi", "sp", "sp", -offset));
-            out = String.format("%s%s\n", out, writeSwLwInstruction("sw", "s0", offset - 4, "sp"));
+            out = String.format("%s%s\n", out, writeSwLwInstruction("sw", "ra", offset - 4, "sp"));
+            out = String.format("%s%s\n", out, writeSwLwInstruction("sw", "s0", offset - 8, "sp"));
             out = String.format("%s%s\n", out, writeImmediateInstruction("addi", "s0", "sp", offset));
         }
         return out;
     }
 
+    private String writeStackIncrement(int offset)
+    {
+        String out = "";
+        if (offset > 2032)
+        {
+            ; // TODO: handle this case
+        }
+        else
+        {   
+            out = String.format("%s%s\n", out, writeSwLwInstruction("lw", "ra", offset - 4, "sp"));
+            out = String.format("%s%s\n", out, writeSwLwInstruction("lw", "s0", offset - 8, "sp"));
+            out = String.format("%s%s\n", out, writeImmediateInstruction("addi", "sp", "sp", offset));
+            out = String.format("%s%s\n", out, "jr ra");
+        }
+        return out;
+    }        
 
     private String writeImmediateInstruction(String instruction, String registera, String registerb, int immediate)
     {
