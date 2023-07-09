@@ -113,7 +113,7 @@ public class Compiler extends cBaseVisitor<String>
         boolean debug = false;
         String outputPath = "";
         CharStream input = null;
-                
+
         // try to open the file, complain if u cant find it
         try {
             if (args[0].equals("-S"))
