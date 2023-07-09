@@ -12,7 +12,6 @@ public class Scope extends CommonSymbol
     int currentOffset;
     public ArrayList<CommonSymbol> parameters = new ArrayList<CommonSymbol>(); // parameters for function
 
-
     public Scope(String id, String type, boolean isFunction)
     {
         super(id, type);
@@ -73,6 +72,12 @@ public class Scope extends CommonSymbol
     public void addParameter(CommonSymbol parameter)
     {
         this.parameters.add(parameter);
+        this.symbolTable.put(parameter.getId(), parameter);
+    }
+
+    public ArrayList<CommonSymbol> getParameters()
+    {
+        return this.parameters;
     }
 
 }
