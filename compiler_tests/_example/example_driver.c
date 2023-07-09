@@ -14,5 +14,5 @@ int main()
     test(5.5);
     printf("Example function returned: %d\n", f());
 
-    return !(f() == 5);
+    return !(f() == 12345);
 }

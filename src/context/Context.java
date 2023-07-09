@@ -3,7 +3,9 @@ package context;
 import symbols.*;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Stack;
 import static java.util.Map.entry;  
 
@@ -190,14 +192,18 @@ public class Context
     public Map <String, String> headerStringsMap = new HashMap<>(); // ArrayList: {headerString, offset, freeBytes}
     public Map <String, String> bodyStringsMap = new HashMap<>(); // body strings for compiled code
 
+
     // privates
-    private Stack<String> _functionScopeStack = new Stack<String>(); // stack of function names
+    private Stack <String> _functionScopeStack = new Stack<String>(); // stack of function names
     private Map <String, Integer> _functionFreeBytes = new HashMap<String, Integer>();
     private Map <String, Integer> _functionOffsets = new HashMap<String, Integer>();
     private Map <String, Scope> _FunctionSymbolTable = new HashMap<String, Scope>(); // symbol table
     private Map <String, CommonSymbol> _GlobalSymbolTable = new HashMap<String, CommonSymbol>(); // symbol table
     private RegisterManager regManager = new RegisterManager();
     private Stack <String> registerStack = new Stack<>();
+    private String declarationMode = "";
+    private Queue <CommonSymbol> _inittializerQueue = new LinkedList<CommonSymbol>();
+    private Stack <Scope> _scopeStack = new Stack<Scope>(); // stack of scopes
 
     public void allocateMemory(int allocateMemory) // allocates memory to the stack for the current FunctionContext
     {
@@ -238,6 +244,7 @@ public class Context
         _functionFreeBytes.put(id, 0);
         _functionOffsets.put(id, 16); 
         _functionScopeStack.push(id); // set current function context
+        _scopeStack.push(scope); // push scope to stack
     }
 
     public Scope getFunction(String id)
@@ -311,6 +318,43 @@ public class Context
         this.bodyStringsMap.put(id, this.bodyStringsMap.get(id) + body);
     }
 
+
+    public String getDeclarationMode()
+    {
+        return this.declarationMode;
+    }
+
+    public void setDeclarationMode(String mode)
+    {
+        this.declarationMode = mode;
+    }
+
+    public Scope getTopScope()
+    {
+        return this._scopeStack.peek();
+    }
+
+    public void addLocalSymbol(CommonSymbol symbol)
+    {
+        getTopScope().addSymbol(symbol); // add symbol to current scope
+    }
+
+    public boolean isGlobalScope()
+    {
+        return _scopeStack.isEmpty();
+    }
+
+
+    public void addInitializer(CommonSymbol symbol)
+    {
+        this._inittializerQueue.add(symbol);
+    }
+
+    public CommonSymbol getFrontOfInitQueue()
+    {
+        return this._inittializerQueue.peek();
+    }
+    
     //////////////////////////////////////////////////
     ////////////////     Printers     ////////////////
     //////////////////////////////////////////////////

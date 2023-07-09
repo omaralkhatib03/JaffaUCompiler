@@ -2,12 +2,15 @@ import context.*;
 import grammar.*;
 import grammar.cLexer;
 import grammar.cParser;
+import symbols.CommonSymbol;
 import symbols.Scope;
+import symbols.Variable;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.util.Map;
+
 
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
@@ -27,17 +30,124 @@ public class Compiler extends cBaseVisitor<String>
 
     protected static FileWriter writer;
     protected Context ctx = new Context();
-    private boolean debug = false;
+    private boolean verbose = false;
+    protected String heapString = ""; // an entire program can share a single heap string
 
-    public Compiler(boolean debug, String outputPath) throws IOException
+    public Compiler(boolean verbose, String outputPath) throws IOException
     {
-        this.debug = debug;
+        this.verbose = verbose;
         try {
             writer = new FileWriter(outputPath);        
         } catch (IOException e) {
             System.err.printf("Error: Cannot open output file\n%s\n", e.toString());
         }
     }
+
+    @Override
+    public String visitDeclaration(cParser.DeclarationContext ctx)
+    {
+        String type = ctx.declarationSpecifiers().getText();
+        if (!typeSizeMap.keySet().contains(type))
+            throw new RuntimeException("Error: Invalid type");
+        
+        this.ctx.setDeclarationMode(type); // we are not declaring symbols of this type
+        visit(ctx.initDeclaratorList());
+        this.ctx.setDeclarationMode(""); // we have finished declaring the symbols
+        
+        return "";
+    }
+
+
+    @Override 
+    public String visitInitDeclaratorList(cParser.InitDeclaratorListContext ctx) 
+    { 
+        visitChildren(ctx);
+        return "";
+    }
+    
+    
+    /////////////////////////////////////////////////////////////////////
+    ////////////////////////   Declarations   ///////////////////////////
+    /////////////////////////////////////////////////////////////////////
+
+    public CommonSymbol declareVariable(String id, cParser.DeclaratorContext ctx)
+    {
+        Variable var = new Variable(id, this.ctx.getDeclarationMode(), this.ctx.getCurrentFunction().getCurrentOffset()); // create variable
+        this.ctx.getCurrentFunction().decrementOffset(typeSizeMap.get(this.ctx.getDeclarationMode())); // decrement offset by size of variable
+        this.ctx.addInitializer(var); // add variable to initializer queue
+        return var;
+    } 
+
+
+    @Override
+    public String visitDeclarator(cParser.DeclaratorContext ctx)
+    {
+        // get id
+        String id = visit(ctx.directDeclarator()); // should return the id of the symbol
+
+        // do some error checking here
+        if (id.equals(""))
+            throw new RuntimeException("Error: Cannot find id");
+
+        if (this.ctx.getDeclarationMode().equals("")) // we are not declaring symbols
+            throw new RuntimeException("Error: Cannot declare symbol outside of declaration, type not found");
+
+        if (ctx.directDeclarator().funcCall != null && ctx.directDeclarator().param != null) // if there is a function call, we need to add it to the type
+            throw new RuntimeException("Error: Cannot declare function call");
+
+        // declare the symbol accordingly
+        CommonSymbol symbol = null;
+        
+        if (ctx.pointer() != null) // if there is a pointer, we need to add it to the type
+        {
+            // TODO: declare pointer
+        }
+        else if (ctx.directDeclarator().structDecl != null)
+        {
+            // TODO: declare struct
+        }
+        else if (ctx.directDeclarator().arrayDecl != null)
+        {
+            // TODO: declare array
+        } 
+        else if (ctx.directDeclarator().varDecl != null)
+        {
+            symbol = declareVariable(id, ctx);
+        }
+        else
+        {
+            throw new RuntimeException("Error: Cannot declare symbol, check syntax");
+        }
+
+        // add declared symbol to the correct scope
+        if (this.ctx.isGlobalScope())
+        {
+            // TODO: implement global scope
+        }
+        else
+        {
+            this.ctx.addLocalSymbol(symbol); // adding global symbol
+        }
+
+        return "";
+    }
+
+
+    @Override 
+    public String visitDirectDeclarator(cParser.DirectDeclaratorContext ctx)
+    {
+        String id = "";
+        if (ctx.directDeclarator() != null)
+            id = visit(ctx.directDeclarator());
+        else
+            id = ctx.Identifier().getText();
+
+        return id;
+    }
+
+    /////////////////////////////////////////////////////////////////////
+    ////////////////////////   Declarations END   ///////////////////////
+    /////////////////////////////////////////////////////////////////////
 
     @Override 
     public String visitFunctionDefinition(cParser.FunctionDefinitionContext ctx) 
@@ -57,11 +167,11 @@ public class Compiler extends cBaseVisitor<String>
         String functionHeaderString = String.format(".text\n.globl %s\n\n%s:\n", functionName, functionName);
         String functionBodyString = "";
         
-        if (this.debug)
+        if (this.verbose)
         {
             System.out.printf("###################### Function Declaration ################### \n");
             System.out.printf("Function Name: %s\n", functionName);
-            System.out.printf("Function Type: %s\n", functionType);
+            System.out.printf("Return Type: %s\n", functionType);
             // System.out.printf("Function Header: \n%s\n", functionHeaderString);
             // System.out.printf("Function Body: \n%s\n", functionBodyString);
             System.out.printf("###################### Function Declaration END ################### \n");
@@ -80,7 +190,7 @@ public class Compiler extends cBaseVisitor<String>
     public String visitCompilationUnit(cParser.CompilationUnitContext ctx)
     {
         visitChildren(ctx);
-        if (this.debug)
+        if (this.verbose)
         {
             System.out.printf("###################### Compilation Unit ################### \n");
             printFunctionSymbolTable();
@@ -113,21 +223,26 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////         Jump Statements       //////////////////////
     ///////////////////////////////////////////////////////////////////////
     
-    public void intReturn(String valueReg, cParser.JumpStatementContext ctx)
+    private void intReturn(String valueReg, cParser.JumpStatementContext ctx)
     {
         this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeMvInstruction("a0", valueReg) + "\n");
     }
+
+    private void floatReturn(String valueReg, cParser.JumpStatementContext ctx)
+    {
+        ; // TODO: implement float return
+    } 
 
     @Override
     public String visitJumpStatement(cParser.JumpStatementContext ctx)
     {
         String jType = ctx.jtype.getText();
         
-        if (debug)
+        if (verbose)
         {
             System.out.printf("###################### Jump Statement ################### \n");
             System.out.printf("jump type: %s\n", jType);
-            System.out.printf("Current function type: %s\n", this.ctx.getCurrentFunction().getType());
+            System.out.printf("Current return type: %s\n", this.ctx.getCurrentFunction().getType());
             System.out.printf("###################### Jump Statement END ################### \n");
         }
 
@@ -149,7 +264,7 @@ public class Compiler extends cBaseVisitor<String>
                     break;
                     case "float":
                     {
-
+                        floatReturn(exprReg, ctx);
                     }
                     break;
                     case "char":
@@ -275,7 +390,7 @@ public class Compiler extends cBaseVisitor<String>
 
     public static void main(String[] args) throws IOException, NoSuchFileException 
     {
-        boolean debug = false;
+        boolean verbose = false;
         String outputPath = "";
         CharStream input = null;
 
@@ -292,14 +407,16 @@ public class Compiler extends cBaseVisitor<String>
                 throw new Exception("Check the syntax of the input, -o not found");
             
             if (args.length >= 5)
-                if (args[4].equals("-d"))
-                    debug = true;
+                if (args[4].equals("-v")) // verbose mode 
+                    verbose = true;
+                else
+                    throw new Exception("Unkown option " + args[4]);
                 
             } catch (Exception e) {
             System.err.printf("Yo where the file @ ?\n%s\n", e.toString());
         }
 
-        Compiler compiler = new Compiler(debug, outputPath);
+        Compiler compiler = new Compiler(verbose, outputPath);
 
         // System.out.printf("%s\n", input.toString());
 
@@ -374,4 +491,5 @@ public class Compiler extends cBaseVisitor<String>
     {
         return String.format("mv %s, %s", regdst, regsrc);
     }
+
 }

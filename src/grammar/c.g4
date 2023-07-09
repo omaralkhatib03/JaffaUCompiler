@@ -220,14 +220,15 @@ declarator
 
 
 directDeclarator // might need to change back idk yet, got it from officical ansi c90 grammar
-    :   Identifier
-    |   '(' declarator ')'
-	| directDeclarator '[' constantExpression ']'
-	| directDeclarator '[' ']'
-	| directDeclarator '(' parameterTypeList ')'
-	| directDeclarator '(' identifierList ')'
-	| directDeclarator '(' ')'
+    :   varDecl=Identifier // variable
+    |   '(' declarator ')' // idk
+	|   arrayDecl=directDeclarator '[' constantExpression ']' // array
+	|   directDeclarator '[' ']' // array ?? wth
+	|   funcCall=directDeclarator '(' param=parameterTypeList ')' // functioncall
+	|   directDeclarator structDecl='(' identifierList? ')' // identifierList is optional, struct and classes ?? idk broski
     ;
+
+
 
 pointer
     :  (('*'|'^') typeQualifierList?)+ // ^ - Blocks language extension

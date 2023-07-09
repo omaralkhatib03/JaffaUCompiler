@@ -4,6 +4,7 @@ public class CommonSymbol
 {
     protected String _id;
     protected String _type;
+    protected int _offset; // offset from s0
 
     public CommonSymbol(String id, String type)
     {
