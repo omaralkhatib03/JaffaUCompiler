@@ -6,13 +6,20 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
+import java.util.SortedMap;
 import java.util.Stack;
-import static java.util.Map.entry;  
+import java.util.TreeMap;
+
+import static java.util.Map.entry;
+
+import java.util.ArrayList;  
 
 
 class RegisterManager
 {
-    private Map<String, BitSet> tmpRegs = Map.ofEntries
+    private int paremeterizationMode = 0; // 0 = no parameterization, 1 = parameterizing
+
+    private SortedMap<String, BitSet> tmpRegs = new TreeMap<>(Map.ofEntries 
     (
         entry("t0", new BitSet(2)),
         entry("t1", new BitSet(2)),
@@ -26,10 +33,10 @@ class RegisterManager
         entry("t9", new BitSet(1)),
         entry("t10", new BitSet(1)),
         entry("t11", new BitSet(1))
-    );
+    ));
 
 
-    private Map<String, BitSet> argRegs = Map.ofEntries
+    private SortedMap<String, BitSet> argRegs = new TreeMap<>(Map.ofEntries
     (
         entry("a0", new BitSet(2)),
         entry("a1", new BitSet(2)),
@@ -39,10 +46,10 @@ class RegisterManager
         entry("a5", new BitSet(2)),
         entry("a6", new BitSet(2)),
         entry("a7", new BitSet(2))
-    );
+    ));
 
 
-    private Map<String, BitSet> savedRegs = Map.ofEntries
+    private SortedMap<String, BitSet> savedRegs = new TreeMap<>(Map.ofEntries
     (
         entry("s1", new BitSet(2)),
         entry("s2", new BitSet(2)),
@@ -55,7 +62,7 @@ class RegisterManager
         entry("s9", new BitSet(2)),
         entry("s10", new BitSet(2)),
         entry("s11", new BitSet(2))
-    );
+    ));
 
     public String getZero()
     {
@@ -156,6 +163,45 @@ class RegisterManager
         
         return rgMap.get(reg).get(index);
     }
+
+
+    public void setParameterizing()
+    {
+        this.paremeterizationMode = 1;
+    }
+
+    public void setNonParameterizing()
+    {
+        this.paremeterizationMode = 0;
+    }
+
+    public boolean isParameterizing()
+    {
+        return this.paremeterizationMode == 1;
+    }
+
+    public void clearAllRegisters()
+    {
+        for (Map.Entry<String, BitSet> entry : tmpRegs.entrySet())
+        {
+            entry.getValue().set(0, false);
+            entry.getValue().set(1, false);
+        }
+
+        for (Map.Entry<String, BitSet> entry : argRegs.entrySet())
+        {
+            entry.getValue().set(0, false);
+            entry.getValue().set(1, false);
+        }
+
+        for (Map.Entry<String, BitSet> entry : savedRegs.entrySet())
+        {
+            entry.getValue().set(0, false);
+            entry.getValue().set(1, false);
+        }
+    }
+
+
 
     ///////////////////////////////////////////////////////////////////
     ////////////////          Printer             /////////////////////
@@ -262,6 +308,11 @@ public class Context
         return _functionOffsets.get(id);
     }
 
+    public ArrayList<CommonSymbol> getFunctionParameters(String id)
+    {
+        return _FunctionSymbolTable.get(id).getParameters();
+    }
+
     public String getReg(String regType, String symbolType, boolean onStack)
     {
         String regOut = this.regManager.getReg(regType, symbolType);
@@ -353,6 +404,26 @@ public class Context
     public CommonSymbol getFrontOfInitQueue()
     {
         return this._inittializerQueue.peek();
+    }
+
+    public void setParameterizing()
+    {
+        this.regManager.setParameterizing();
+    }
+
+    public void setNonParameterizing()
+    {
+        this.regManager.setNonParameterizing();
+    }
+
+    public boolean isParameterizing()
+    {
+        return this.regManager.isParameterizing();
+    }
+
+    public void clearAllRegisters()
+    {
+        this.regManager.clearAllRegisters();
     }
     
     //////////////////////////////////////////////////

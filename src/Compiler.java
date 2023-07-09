@@ -4,13 +4,14 @@ import grammar.cLexer;
 import grammar.cParser;
 import symbols.CommonSymbol;
 import symbols.Scope;
+import symbols.Struct;
 import symbols.Variable;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
+import java.util.ArrayList;
 import java.util.Map;
-
 
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
@@ -126,10 +127,10 @@ public class Compiler extends cBaseVisitor<String>
         return "";
     }
 
-    private CommonSymbol declareVariable(String id, cParser.DeclaratorContext ctx, boolean addToQueue)
+    private CommonSymbol declareVariable(String id, String type, boolean addToQueue)
     {
-        Variable var = new Variable(id, this.ctx.getDeclarationMode(), this.ctx.getCurrentFunction().getCurrentOffset()); // create variable
-        this.ctx.getCurrentFunction().decrementOffset(typeSizeMap.get(this.ctx.getDeclarationMode())); // decrement offset by size of variable
+        Variable var = new Variable(id, type, this.ctx.getCurrentFunction().getCurrentOffset()); // create variable
+        this.ctx.getCurrentFunction().decrementOffset(typeSizeMap.get(type)); // decrement offset by size of variable
         if (addToQueue)
             this.ctx.addInitializer(var); // add variable to initializer queue
         return var;
@@ -169,7 +170,7 @@ public class Compiler extends cBaseVisitor<String>
         } 
         else if (ctx.directDeclarator().varDecl != null)
         {
-            symbol = declareVariable(id, ctx, true);
+            symbol = declareVariable(id, this.ctx.getDeclarationMode(), true);
         }
         else
         {
@@ -252,6 +253,7 @@ public class Compiler extends cBaseVisitor<String>
             throw new RuntimeException("Error: Invalid parameter type");
 
         cParser.DeclaratorContext declarator = ctx.declarator(); // picked up declarator, this has to exist
+        
         if (declarator == null)        
             throw new RuntimeException("Error: Cannot find declarator, check syntax");
 
@@ -271,14 +273,16 @@ public class Compiler extends cBaseVisitor<String>
         }
         else if (declarator.directDeclarator().varDecl != null)
         {
-            symbol = declareVariable(id, declarator, false);
+            symbol = declareVariable(id, type,  false);
         }
         else
         {
-            // throw new RuntimeException("Error: Cannot prepare paramter symbol, check syntax");
-            return "";
+            throw new RuntimeException("Error: Cannot prepare paramter symbol, check syntax");
+            // return "";
         }
         
+        if (verbose) System.out.printf("Prepared parameter: %s of type: %s\n", id, type);
+
         // add parameter to function list
         this.ctx.getCurrentFunction().addParameter(symbol);
         return "";
@@ -321,6 +325,7 @@ public class Compiler extends cBaseVisitor<String>
         this.ctx.addScope(functionName, functionType, true);
         this.ctx.headerStringsMap.put(functionName, functionHeaderString);
         this.ctx.bodyStringsMap.put(functionName, functionBodyString);
+        
         // get parameters ready
         if (ctx.declarator().directDeclarator().param != null)
             prepareParameter(ctx.declarator().directDeclarator().param);
@@ -333,22 +338,16 @@ public class Compiler extends cBaseVisitor<String>
     public String visitCompilationUnit(cParser.CompilationUnitContext ctx)
     {
         visitChildren(ctx);
-        if (this.verbose)
-        {
-            System.out.printf("###################### Compilation Unit ################### \n");
-            printFunctionSymbolTable();
-            System.out.printf("###################### Compilation Unit END ################### \n");
-            this.ctx.printRegMaps();
-            this.ctx.printRegisterStackStatus();
-            this.ctx.printAllSymbolTables();
-        }
+        if (verbose) System.out.printf("###################### Compilation Unit ################### \n");
 
         try {
             for (String i : this.ctx.headerStringsMap.keySet()) 
             {
                 String stackDecStr = writeStackDecrement(this.ctx.getFunctionOffset(i));
+                // if (verbose) System.out.printf("Called in Compilation unit, ENSURE THAT REGISTERS ARE EMPTY \n");
+                String parameters = writeParameters(this.ctx.getFunctionParameters(i));
                 String stackIncStr = writeStackIncrement(this.ctx.getFunctionOffset(i));
-                writer.write(this.ctx.headerStringsMap.get(i) + stackDecStr);
+                writer.write(this.ctx.headerStringsMap.get(i) + stackDecStr + parameters);
                 writer.write(this.ctx.bodyStringsMap.get(i) + stackIncStr);
                 writer.write("\n");
             }    
@@ -358,11 +357,19 @@ public class Compiler extends cBaseVisitor<String>
         } catch (Exception e) {
             System.err.printf("Error: Cannot write to output file\n%s\n", e.toString());
             return"";
-        }        
+        }      
+
+        if (this.verbose)
+        {
+            printFunctionSymbolTable();
+            System.out.printf("###################### Compilation Unit END ################### \n");
+            this.ctx.printRegMaps();
+            this.ctx.printRegisterStackStatus();
+            this.ctx.printAllSymbolTables();
+        }
 
         return  "";
     }
-
 
 
     ///////////////////////////////////////////////////////////////////////
@@ -587,6 +594,83 @@ public class Compiler extends cBaseVisitor<String>
             out = String.format("%s%s\n", out, writeSwLwInstruction("sw", "s0", offset - 8, "sp"));
             out = String.format("%s%s\n", out, writeImmediateInstruction("addi", "s0", "sp", offset));
         }
+        return out;
+    }
+
+    private String variableParameterWrite(Variable var)
+    {
+        switch (var.getType()) {
+            case "float":
+            {
+                // TODO: implement float parameter write
+            }
+            break;
+            case "double":
+            {
+                // TODO: implement double parameter write
+            }
+            break;
+            case "char":
+            {
+                // TODO: implement char parameter write
+            }
+            break;
+            case "unsigned":
+            {
+                // TODO: implement unsigned parameter write
+            }
+            break;
+            default: // int default
+            {
+                String reg = this.ctx.getReg("a", var.getType(), false); // dont put on stack
+                
+                if (reg.equals("-1"))
+                {
+                    reg = this.ctx.getReg("a", "float", false); // dont put on stack
+
+                }
+
+                if (reg.equals("-1"))
+                {
+                    // TODO: implement parameter write when all int and float registers are full
+                }
+                
+                return String.format("%s", writeSwLwInstruction("sw", reg, var.getOffset(), "s0")); // change s0 to sp when implementing stack all regs are full
+
+            }
+            // break; 
+        }
+        return "";
+    }
+
+    private String writeParameters(ArrayList<CommonSymbol> params)
+    {
+        if (params.size() == 0)
+            return "";
+
+        String out = "";
+        
+        this.ctx.setParameterizing(); // using regManager to organize and allocate parameters
+        for (CommonSymbol i : params)
+        {
+            if (i instanceof Variable)
+            {
+                out = String.format("%s%s\n", out, variableParameterWrite((Variable)i));
+            }
+            else if (i instanceof symbols.Array)
+            {
+                // TODO: implement array parameter write
+            }
+            else if (i instanceof Struct)
+            {
+                // TODO: implement struct parameter write
+            }
+        }
+        this.ctx.clearAllRegisters(); // clear all registers
+        this.ctx.setNonParameterizing(); // done Parameterizing
+        if (out.equals(""))
+            throw new RuntimeException("writeParameters: out is empty");
+        
         return out;
     }
 

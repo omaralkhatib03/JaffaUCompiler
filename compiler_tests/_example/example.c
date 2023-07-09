@@ -1,10 +1,6 @@
 int f(int a, int b)
 {
+    int c;
+    c=10;
     return a+b;
-}
-
-
-int foo(int a, int b[10], int *c)
-{
-    return 2;
 }
