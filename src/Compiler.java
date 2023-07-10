@@ -94,9 +94,9 @@ public class Compiler extends cBaseVisitor<String>
     public String visitInitializer(cParser.InitializerContext ctx)
     {
         CommonSymbol symbol = this.ctx.getFrontOfInitQueue();
-        String reg = this.ctx.getReg("t", symbol.getType(), true);
+        // String reg = this.ctx.getReg("t", symbol.getType(), true);
         visit(ctx.assignmentExpression()); // compile into the register
-        storeSymbol(symbol, reg);
+        storeSymbol(symbol, this.ctx.getTopReg());
         this.ctx.clearTopOfStack();
         return "";
     }
@@ -532,9 +532,8 @@ public class Compiler extends cBaseVisitor<String>
         if (constant.matches(intRegex))
         {
             type = "constant int";
-            String reg = this.ctx.getReg("s", "int", true);
+            String reg = this.ctx.getReg("t", "int", true);
             this.ctx.bodyStringsMap.put(currFunction.getId(), currFunctionBody + writeLiInstruction(reg, constant) + "\n");
-            System.out.printf("s1: %b\n", this.ctx.getRegStatus("s1"));
         }
         else if (constant.matches(floatRegex))
         {
@@ -618,125 +617,455 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////         EXPRESSIONS           //////////////////////
     ///////////////////////////////////////////////////////////////////////
 
-    // @Override
-    // public String visitMultiplicativeExpression(cParser.MultiplicativeExpressionContext ctx)
-    // {
-    //     // String type = visit(ctx.lhs);
-    //     String op = ctx.op.getText();
+
+    // TODO: implement types for expressions, ltype and rtype are avialable at each expression node, figure out logic
+
+    private void writeMultiplication(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("mul", rega, rega, regb) + "\n");
+    }
+
+    private void writeDivision(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("div", rega, rega, regb) + "\n");
+    }
+
+    private void writeModulo(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("rem", rega, rega, regb) + "\n");
+    }
+
+    @Override
+    public String visitMultiplicativeExpression(cParser.MultiplicativeExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+        String lhsType = visit(ctx.lhs);
+        String lReg = this.ctx.getTopReg();
+
+        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
+        String rhsType = visit(ctx.rhs); // returns rtype
+
+        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+
+        String op = ctx.op.getText();
         
-    //     switch (op) 
-    //     {
-    //         case "*":
-    //         {
-    //             // TODO: implement multiplication
-    //         }
-    //         break;
-    //         case "/":
-    //         {
-    //             // TODO: implement division
-    //         }
-    //         break;
-    //         case "%":
-    //         {
-    //             // TODO: implement modulus
-    //         }
-    //         break;
-    //     }
+        switch (op) 
+        {
+            case "*":
+            {
+                writeMultiplication(lReg, this.ctx.getTopReg());
+            }
+            break;
+            case "/":
+            {
+                writeDivision(lReg, this.ctx.getTopReg());
+            }
+            break;
+            case "%":
+            {
+                writeModulo(lReg, this.ctx.getTopReg());                
+            }
+            break;
+        }
+
+        this.ctx.clearTopOfStack(); //clears r reg
+        // this.ctx.clearTopOfStack(); //clears l reg, dont need to clear it because it will be overwritten by the result of the operation
+
+        return "Multiplicative" + lhsType; // to inform parent that a multiplicative expression was evaluated, hence the value in lreg would not be treated as a pointer
+    }
+
+    private void writeAddition(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("add", rega, rega, regb) + "\n");
+    }
+
+    private void writeSubtraction(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("sub", rega, rega, regb) + "\n");
+    }
+
+    @Override
+    public String visitAdditiveExpression(cParser.AdditiveExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+        String lhsType = visit(ctx.lhs);
+        String lReg = this.ctx.getTopReg();
+
+        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
+        String rhsType = visit(ctx.rhs); // returns rtype
+
+
+        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+
+        String op = ctx.op.getText();
+        switch (op) 
+        {
+            case "+":
+            {
+                writeAddition(lReg, this.ctx.getTopReg());
+            }
+            break;
+            case "-":
+            {
+                writeSubtraction(lReg, this.ctx.getTopReg());
+            }
+            break;
+        }
+
+        this.ctx.clearTopOfStack(); //clears r reg
+
+        return "Additive" + lhsType; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
+    }
+
+    private void writeShiftLeft(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("sll", rega, rega, regb) + "\n");
+    }
+
+    private void writeShiftRight(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("sra", rega, rega, regb) + "\n");
+    }
+
+    @Override
+    public String visitShiftExpression(cParser.ShiftExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
         
-    //     return "";
-    // }
+        String lhsType = visit(ctx.lhs);
+        String lReg = this.ctx.getTopReg();
 
-    // @Override
-    // public String visitAdditiveExpression(cParser.AdditiveExpressionContext ctx)
-    // {
-    //     visit(ctx.lhs);
-    //     return "";
-    // }
+        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
 
-    // @Override
-    // public String visitShiftExpression(cParser.ShiftExpressionContext ctx)
-    // {
-    //     visit(ctx.lhs);
-    //     return "";
-    // }
-    
-    // @Override
-    // public String visitRelationalExpression(cParser.RelationalExpressionContext ctx)
-    // {
-    //     visit(ctx.lhs);
-    //     return "";
-    // }
+        String rhsType = visit(ctx.rhs); // returns rtype
 
-    // @Override
-    // public String visitEqualityExpression(cParser.EqualityExpressionContext ctx)
-    // {
-    //     visit(ctx.lhs);
-    //     return "";
-    // }
+        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
 
-    // @Override
-    // public String visitAndExpression(cParser.AndExpressionContext ctx)
-    // {
-    //     visit(ctx.lhs);
-    //     return "";
-    // }
+        String op = ctx.op.getText();
+        switch (op) 
+        {
+            case "<<":
+            {
+                writeShiftLeft(lReg, this.ctx.getTopReg());
+            }
+            break;
+            case ">>":
+            {
+                writeShiftRight(lReg, this.ctx.getTopReg());
+            }
+            break;
+        }
 
-    // @Override
-    // public String visitExclusiveOrExpression(cParser.ExclusiveOrExpressionContext ctx)
-    // {
-    //     visit(ctx.lhs);
-    //     return "";
-    // }
+        this.ctx.clearTopOfStack(); //clears r reg
 
-    // @Override
-    // public String visitInclusiveOrExpression(cParser.InclusiveOrExpressionContext ctx)
-    // {
-    //     visit(ctx.lhs);
-    //     return "";
-    // }
+        return "Shift" + lhsType; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
 
-    // @Override
-    // public String visitLogicalAndExpression(cParser.LogicalAndExpressionContext ctx)
-    // {   
-    //     visit(ctx.lhs);
-    //     return "";
-    // }
+    }
 
-    // @Override
-    // public String visitLogicalOrExpression(cParser.LogicalOrExpressionContext ctx)
-    // {
-    //     visit(ctx.lhs);
-    //     return "";
-    // }
+    private void writeLt(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("slt", rega, rega, regb) + "\n");
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeImmediateInstruction("andi", rega, rega, 0xff) + "\n");
+    }
 
-    private void writeAssign(String funcId, String rhsReg, String type, String instr, String topReg)
+    private void writeGt(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("sgt", rega, rega, regb) + "\n");
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeImmediateInstruction("andi", rega, rega, 0xff) + "\n");
+    }
+
+    private void writeLtEq(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("slt", rega, regb, rega) + "\n");
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSeqzInstruction("seqz", rega, rega) + "\n");
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeImmediateInstruction("andi", rega, rega, 0xff) + "\n");
+    }
+
+    private void writeGtEq(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("sgt", rega, regb, rega) + "\n");
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSeqzInstruction("seqz", rega, rega) + "\n");
+    }
+
+    @Override
+    public String visitRelationalExpression(cParser.RelationalExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+        
+        String lhsType = visit(ctx.lhs);
+        String lReg = this.ctx.getTopReg();
+
+        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
+
+        String rhsType = visit(ctx.rhs); // returns rtype
+
+        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+
+        String op = ctx.op.getText();
+
+        switch (op) 
+        {
+            case "<":
+            {
+                writeLt(lReg, this.ctx.getTopReg());
+            }
+            break;
+            case ">":
+            {
+                writeGt(lReg, this.ctx.getTopReg());
+            }
+            break;
+            case "<=":
+            {
+                writeLtEq(lReg, this.ctx.getTopReg());
+            }
+            break;
+            case ">=":
+            {
+                writeGtEq(lReg, this.ctx.getTopReg());
+            }
+            break;
+        }
+
+        this.ctx.clearTopOfStack();
+
+        return "Relational" + lhsType ; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
+    }
+
+    private void writeEq(String rega, String regb)
+    {
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("sub", rega, rega, regb) + "\n");
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(),  writeSeqzInstruction("seqz", rega, regb) + "\n");
+    }
+
+    @Override
+    public String visitEqualityExpression(cParser.EqualityExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+        
+        String lhsType = visit(ctx.lhs);
+        String lReg = this.ctx.getTopReg();
+
+        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
+
+        String rhsType = visit(ctx.rhs); // returns rtype
+
+        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+
+        String op = ctx.op.getText();
+
+        switch (op) 
+        {
+            case "==":
+            {
+                writeEq(lReg, this.ctx.getTopReg());
+            }
+            break;
+            case "!=":
+            {
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("sne", lReg, lReg, this.ctx.getTopReg()) + "\n");
+            }
+            break;
+        }
+
+        this.ctx.clearTopOfStack();
+
+        return "Equality" + lhsType;
+    }
+
+    @Override
+    public String visitAndExpression(cParser.AndExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+        
+        String lhsType = visit(ctx.lhs);
+        String lReg = this.ctx.getTopReg();
+
+        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
+
+        String rhsType = visit(ctx.rhs); // returns rtype
+
+        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+
+
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("and", lReg, lReg, this.ctx.getTopReg()) + "\n");
+        
+        this.ctx.clearTopOfStack();
+
+        return "Anded" + lhsType;
+    }
+
+    @Override
+    public String visitExclusiveOrExpression(cParser.ExclusiveOrExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+        
+        String lhsType = visit(ctx.lhs);
+        String lReg = this.ctx.getTopReg();
+
+        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
+
+        String rhsType = visit(ctx.rhs); // returns rtype
+
+        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("xor", lReg, lReg, this.ctx.getTopReg()) + "\n");
+
+        this.ctx.clearTopOfStack();
+
+        return "Xored" + lhsType;
+    }
+
+    @Override
+    public String visitInclusiveOrExpression(cParser.InclusiveOrExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+        
+        String lhsType = visit(ctx.lhs);
+        String lReg = this.ctx.getTopReg();
+
+        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
+
+        String rhsType = visit(ctx.rhs); // returns rtype
+
+        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+
+        this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("or", lReg, lReg, this.ctx.getTopReg()) + "\n");
+
+        this.ctx.clearTopOfStack();
+
+        return "Ored" + lhsType;
+    }
+
+    private void writeLogicalAnd(String rega, String regb)
+    {
+        String funcId = this.ctx.getCurrentFunction().getId();
+        String labelOne = this.ctx.makeUnqiueLabel("AND"); //
+        String labelTwo = this.ctx.makeUnqiueLabel("AND"); //
+        this.ctx.writeBodyString(funcId, writeBranchInstruction("beq", rega, "zero", labelOne) + "\n");
+        this.ctx.writeBodyString(funcId, writeBranchInstruction("beq", regb, "zero", labelOne) + "\n");
+        this.ctx.writeBodyString(funcId, writeLiInstruction(rega, "1") + "\n");
+        this.ctx.writeBodyString(funcId, "j " + labelTwo + "\n");
+        this.ctx.writeBodyString(funcId, labelOne + ":\n");
+        this.ctx.writeBodyString(funcId, writeLiInstruction(rega, "0") + "\n");
+        this.ctx.writeBodyString(funcId, labelTwo + ":\n");
+    }
+
+    @Override
+    public String visitLogicalAndExpression(cParser.LogicalAndExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+        
+        String lhsType = visit(ctx.lhs);
+        String lReg = this.ctx.getTopReg();
+
+        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
+
+        String rhsType = visit(ctx.rhs); // returns rtype
+
+        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+
+        writeLogicalAnd(lReg, this.ctx.getTopReg());
+
+        this.ctx.clearTopOfStack();
+
+        return "LogicalAnded" + lhsType;
+    }
+
+    private void writeLogicalOr(String rega, String regb)
+    {
+        String funcId = this.ctx.getCurrentFunction().getId();
+        String labelOne = this.ctx.makeUnqiueLabel("OR"); //
+        String labelTwo = this.ctx.makeUnqiueLabel("OR"); //
+        this.ctx.writeBodyString(funcId, writeBranchInstruction("bne", rega, "zero", labelOne) + "\n");
+        this.ctx.writeBodyString(funcId, writeBranchInstruction("beq", regb, "zero", labelTwo) + "\n");
+        this.ctx.writeBodyString(funcId, labelOne + ":\n");
+        this.ctx.writeBodyString(funcId, writeLiInstruction(rega, "1") + "\n");
+        this.ctx.writeBodyString(funcId, "j " + labelTwo + "\n");
+        this.ctx.writeBodyString(funcId, writeLiInstruction(rega, "0") + "\n");
+        this.ctx.writeBodyString(funcId, labelTwo + ":\n");
+    }
+
+    @Override
+    public String visitLogicalOrExpression(cParser.LogicalOrExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+        
+        String lhsType = visit(ctx.lhs);
+        String lReg = this.ctx.getTopReg();
+
+        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
+
+        String rhsType = visit(ctx.rhs); // returns rtype
+
+        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+
+        writeLogicalOr(lReg, this.ctx.getTopReg());
+        this.ctx.clearTopOfStack();
+
+        return "LogicalOred" + lhsType;
+    }
+
+
+
+    private void writeAssign(String funcId, String rhsReg, String type, String instr, String lhsReg)
     {
         switch (type) 
         {
             case "float":
             {
-                // TODO: implement float parameter write
+                // TODO: implement float parameter write assign 
             }
             break;
             case "double":
             {
-                // TODO: implement double parameter write
+                // TODO: implement double parameter write assign 
             }
             break;
             case "char":
             {
-                // TODO: implement char parameter write
+                // TODO: implement char parameter write assign
             }
             break;
             case "unsigned":
             {
-                // TODO: implement unsigned parameter write
+                // TODO: implement unsigned parameter write assign 
             }
             break;
             default: // int default
             {
                 String tmpReg = this.ctx.getReg("t", type, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, topReg) + "\n");
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, lhsReg) + "\n");
                 this.ctx.writeBodyString(funcId, writeRegInstruction(instr, tmpReg, tmpReg, rhsReg) + "\n");
                 this.ctx.clearReg(tmpReg);
             }
@@ -1018,6 +1347,16 @@ public class Compiler extends cBaseVisitor<String>
     private String writeRegInstruction(String instruction, String dst, String registera, String registerb)
     {
         return String.format("%s %s, %s, %s", instruction, dst, registera, registerb);
+    }
+
+    private String writeBranchInstruction(String instruction, String regA, String regB, String label)
+    {
+        return String.format("%s %s, %s, %s", instruction, regA, regB, label);
+    }
+
+    private String writeSeqzInstruction(String instruction, String rega, String regb)
+    {
+        return String.format("%s %s, %s", instruction, rega, rega);
     }
 
     private String getType(cParser.DeclarationSpecifiersContext ctx)

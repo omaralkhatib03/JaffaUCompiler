@@ -1,15 +1,19 @@
 .text
-.globl ffff
+.globl f
 
-ffff:
+f:
 addi sp, sp, -32
 sw ra, 28(sp)
 sw s0, 24(sp)
 addi s0, sp, 32
-li s1, 10
-addi t0, s0, -20
-sw s1, 0(t0)
-addi t0, s0, -20
+li t0, 10
+sw t0, -20(s0)
+li t0, 20
+addi t1, s0, -20
+lw t1, 0(t1)
+add t0, t0, t1
+sw t0, -24(s0)
+addi t0, s0, -24
 lw t0, 0(t0)
 mv a0, t0
 lw ra, 28(sp)

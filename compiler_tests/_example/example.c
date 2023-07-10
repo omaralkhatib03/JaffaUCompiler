@@ -1,18 +1,6 @@
-int ffff()
+int f()
 {
-    int x;
-    x=10;
+    int y=10;
+    int x=20 + y;
     return x;
 }
-
-
-// float x, y, z;
-// x = y = z = 5;
-
-
-// int f(int a, int b)
-// {
-//     int x, y, z;
-//     x = y = z = 5;
-//     return 5;
-// }

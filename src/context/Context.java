@@ -266,6 +266,8 @@ public class Context
     private String declarationMode = "";
     private Queue <CommonSymbol> _inittializerQueue = new LinkedList<CommonSymbol>();
     private Stack <Scope> _scopeStack = new Stack<Scope>(); // stack of scopes
+    private int _makeUnq = 0;
+
 
     public void allocateMemory(int allocateMemory, String fid) // allocates memory to the stack for the current FunctionContext
     {
@@ -411,7 +413,7 @@ public class Context
 
     public CommonSymbol getFrontOfInitQueue()
     {
-        return this._inittializerQueue.peek();
+        return this._inittializerQueue.poll();
     }
 
     public void setParameterizing()
@@ -464,6 +466,12 @@ public class Context
     public boolean getRegStatus(String reg)
     {
         return this.regManager.getRegStatus(reg);
+    }
+
+
+    public String makeUnqiueLabel(String label)
+    {
+        return "_" + label + "_" + (this._makeUnq++);
     }
 
 
