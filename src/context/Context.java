@@ -455,7 +455,7 @@ public class Context
         while (!this.registerStack.empty())
         {
             if (verbose)
-                System.out.printf("%s\n", clearTopOfStack());
+                System.out.printf("clearing: %s\n", clearTopOfStack());
             else
                 clearTopOfStack();
         }

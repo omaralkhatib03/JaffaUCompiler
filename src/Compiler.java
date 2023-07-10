@@ -390,8 +390,11 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////         Jump Statements       //////////////////////
     ///////////////////////////////////////////////////////////////////////
     
-    private void intReturn(String valueReg, cParser.JumpStatementContext ctx)
+    private void intReturn(String valueReg, cParser.JumpStatementContext ctx, String exprType)
     {
+        if (typeSizeMap.containsKey(exprType))
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n");
+
         this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeMvInstruction("a0", valueReg) + "\n");
     }
 
@@ -410,19 +413,18 @@ public class Compiler extends cBaseVisitor<String>
             System.out.printf("###################### Jump Statement ################### \n");
             System.out.printf("jump type: %s\n", jType);
             System.out.printf("Current return type: %s\n", this.ctx.getCurrentFunction().getType());
-            System.out.printf("###################### Jump Statement END ################### \n");
         }
 
 
         switch (jType) {
             case "return":
             {
-                this.ctx.setUsed("a0", true); // set a0 as used and push it on the stack 
-                String exprReg = this.ctx.getReg("a", this.ctx.getCurrentFunction().getType(), true); // get another reg and push it on the stack
+                this.ctx.setUsed("a0", false); // set a0 as used and push it on the stack 
                 this.ctx.setFunctionReturn(this.ctx.getCurrentFunction().getId(), true);
-                visit(ctx.expression());
+                String exprType = visit(ctx.expression());
+                if (verbose) System.out.printf("Expression returned type: %s\n", exprType);
                 this.ctx.setFunctionReturn(this.ctx.getCurrentFunction().getId(), false);
-                this.ctx.clearTopOfStack();
+
                 switch (this.ctx.getCurrentFunction().getType()) {
                     case "double":
                     {
@@ -431,7 +433,7 @@ public class Compiler extends cBaseVisitor<String>
                     break;
                     case "float":
                     {
-                        floatReturn(exprReg, ctx);
+                        floatReturn(this.ctx.getTopReg(), ctx);
                     }
                     break;
                     case "char":
@@ -446,11 +448,13 @@ public class Compiler extends cBaseVisitor<String>
                     break;
                     default: // int 
                     {
-                        intReturn(exprReg, ctx);
+                        intReturn(this.ctx.getTopReg(), ctx, exprType);
                     }
                     break;
                 }
-                this.ctx.clearTopOfStack(); // clears a0
+                this.ctx.clearReg("a0");
+                this.ctx.clearTopOfStack(); 
+                // this.ctx.clearTopOfStack();
             }
             break;
             case "break":
@@ -466,7 +470,8 @@ public class Compiler extends cBaseVisitor<String>
             default: // TODO: goto jump instruction
             break;
         }
-        
+        if (verbose) System.out.printf("###################### Jump Statement END ################### \n");
+
         return "";
     }
 
@@ -583,13 +588,12 @@ public class Compiler extends cBaseVisitor<String>
         if (ctx.Identifier() != null)
         {
             // if (this.ctx.getCurrentFunction().isReturning()); // TODO: handle returning identifiers
-
             return primaryExpressionId(ctx.Identifier());
         }
         else if (ctx.Constant() != null)
         {
-            if (this.ctx.getCurrentFunction().isReturning())
-                return primaryExprReturning(ctx);
+            // if (this.ctx.getCurrentFunction().isReturning())
+                // return primaryExprReturning(ctx);
             
             return primaryExpressionConstant(ctx.Constant());
         }
@@ -723,63 +727,95 @@ public class Compiler extends cBaseVisitor<String>
         if (typeSizeMap.containsKey(rhsType)) // constants return type "constant type", if we have a constant we done need to unpack the value
             this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", topReg, 0, topReg) + "\n"); // if what u picked up was a pointer, u need to use it here, thus unload it from location
         // now top reg holds a value
-        String lhs = visit(ctx.leftHandSide); // get the pointer to the left hand side, a new register is put onto the stack
+        String lhsType = visit(ctx.leftHandSide); // get the pointer to the left hand side, a new register is put onto the stack
         String op = ctx.assOp.getText(); // get the operator
-        switch (op) 
+        String funcId = this.ctx.getCurrentFunction().getId();
+        switch (op)  // TODO: If statemenets for types within the cases
         {
             case "=":
             {
-                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("sw", topReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("sw", topReg, 0, this.ctx.getTopReg()) + "\n");
             }
             break;
             case "*=":
             {
                 // TODO: implement multiplication assignment
+                String tmpReg = this.ctx.getReg("t", lhsType, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.writeBodyString(funcId, writeRegInstruction("mul", tmpReg, tmpReg, topReg) + "\n");
+                this.ctx.clearReg(tmpReg);
             }
             break;
             case "/=":
             {
-                // TODO: implement division assignment
+                String tmpReg = this.ctx.getReg("t", lhsType, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.writeBodyString(funcId, writeRegInstruction("div", tmpReg, tmpReg, topReg) + "\n");
+                this.ctx.clearReg(tmpReg);
             }
             break;
             case "%=":
             {
-                // TODO: implement modulus assignment
+                String tmpReg = this.ctx.getReg("t", lhsType, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.writeBodyString(funcId, writeRegInstruction("rem", tmpReg, tmpReg, topReg) + "\n");
+                this.ctx.clearReg(tmpReg);
             }
             break;
             case "+=":
             {
-                // TODO: implement addition assignment
+                String tmpReg = this.ctx.getReg("t", lhsType, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.writeBodyString(funcId, writeRegInstruction("add", tmpReg, tmpReg, topReg) + "\n");
+                this.ctx.clearReg(tmpReg);
             }
             break;
             case "-=":
             {
-                // TODO: implement subtraction assignment
+                String tmpReg = this.ctx.getReg("t", lhsType, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.writeBodyString(funcId, writeRegInstruction("sub", tmpReg, tmpReg, topReg) + "\n");
+                this.ctx.clearReg(tmpReg);
             }
             break;
             case "<<=":
             {
-                // TODO: implement left shift assignment
+                String tmpReg = this.ctx.getReg("t", lhsType, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.writeBodyString(funcId, writeRegInstruction("sll", tmpReg, tmpReg, topReg) + "\n");
+                this.ctx.clearReg(tmpReg);
             }
             break;
             case ">>=":
             {
-                // TODO: implement right shift assignment
+                String tmpReg = this.ctx.getReg("t", lhsType, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.writeBodyString(funcId, writeRegInstruction("sra", tmpReg, tmpReg, topReg) + "\n");
+                this.ctx.clearReg(tmpReg);
             }
             break;
             case "&=":
             {
-                // TODO: implement bitwise and assignment
+                String tmpReg = this.ctx.getReg("t", lhsType, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.writeBodyString(funcId, writeRegInstruction("and", tmpReg, tmpReg, topReg) + "\n");
+                this.ctx.clearReg(tmpReg);
             }
             break;
             case "^=":
             {
-                // TODO: implement bitwise xor assignment
+                String tmpReg = this.ctx.getReg("t", lhsType, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg() + "\n"));
+                this.ctx.writeBodyString(funcId, writeRegInstruction("xor", tmpReg, tmpReg, topReg) + "\n");
+                this.ctx.clearReg(tmpReg);
             }
             break;
             case "|=":
             {
-                // TODO: implement bitwise or assignment
+                String tmpReg = this.ctx.getReg("t", lhsType, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg() + "\n"));
+                this.ctx.writeBodyString(funcId, writeRegInstruction("or", tmpReg, tmpReg, topReg) + "\n");
+                this.ctx.clearReg(tmpReg);
             }
             break;
         }
@@ -787,7 +823,7 @@ public class Compiler extends cBaseVisitor<String>
         this.ctx.clearStack(verbose);
         if (verbose) System.out.printf("#########################################    Assignment Expression END #####################################\n");
 
-        return lhs;
+        return lhsType;
     }
 
 
@@ -973,6 +1009,11 @@ public class Compiler extends cBaseVisitor<String>
     private String writeMvInstruction(String regdst, String regsrc)
     {
         return String.format("mv %s, %s", regdst, regsrc);
+    }
+
+    private String writeRegInstruction(String instruction, String dst, String registera, String registerb)
+    {
+        return String.format("%s %s, %s, %s", instruction, dst, registera, registerb);
     }
 
     private String getType(cParser.DeclarationSpecifiersContext ctx)
