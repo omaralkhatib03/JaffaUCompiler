@@ -333,6 +333,7 @@ public class Compiler extends cBaseVisitor<String>
         }
 
         this.ctx.addScope(functionName, functionType, true, true);
+        this.ctx.setReturnLabel(functionName);
         this.ctx.headerStringsMap.put(functionName, functionHeaderString);
         this.ctx.bodyStringsMap.put(functionName, functionBodyString);
         // get parameters ready
@@ -358,7 +359,7 @@ public class Compiler extends cBaseVisitor<String>
                 if (verbose) System.out.printf("Called in Compilation unit, ENSURE THAT REGISTERS ARE EMPTY \n");
                 if (verbose) this.ctx.printRegMaps();
                 String parameters = writeParameters(this.ctx.getFunctionParameters(i));
-                String stackIncStr = writeStackIncrement(this.ctx.getFunctionStackSize(i));
+                String stackIncStr = writeStackIncrement(this.ctx.getFunctionStackSize(i), i);
                 writer.write(this.ctx.headerStringsMap.get(i) + stackDecStr + parameters);
                 writer.write(this.ctx.bodyStringsMap.get(i) + stackIncStr);
                 writer.write("\n");
@@ -452,6 +453,8 @@ public class Compiler extends cBaseVisitor<String>
                     }
                     break;
                 }
+
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), "j " + this.ctx.getReturnLabel(this.ctx.getCurrentFunction().getId()) + "\n");
                 this.ctx.clearReg("a0");
                 this.ctx.clearTopOfStack(); 
                 // this.ctx.clearTopOfStack();
@@ -1331,7 +1334,7 @@ public class Compiler extends cBaseVisitor<String>
         return out;
     }
 
-    private String writeStackIncrement(int offset)
+    private String writeStackIncrement(int offset, String fid)
     {
         String out = "";
         if (offset > 2032)
@@ -1340,6 +1343,7 @@ public class Compiler extends cBaseVisitor<String>
         }
         else
         {   
+            out = String.format("%s%s\n", out, this.ctx.getReturnLabel(fid) + ":");
             out = String.format("%s%s\n", out, writeSwLwInstruction("lw", "ra", offset - 4, "sp"));
             out = String.format("%s%s\n", out, writeSwLwInstruction("lw", "s0", offset - 8, "sp"));
             out = String.format("%s%s\n", out, writeImmediateInstruction("addi", "sp", "sp", offset));

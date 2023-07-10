@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.Stack;
 import java.util.TreeMap;
@@ -267,7 +268,7 @@ public class Context
     private Queue <CommonSymbol> _inittializerQueue = new LinkedList<CommonSymbol>();
     private Stack <Scope> _scopeStack = new Stack<Scope>(); // stack of scopes
     private int _makeUnq = 0;
-
+    private Map <String, String> _returnLabels = new HashMap<String, String>(); // symbol table
 
     public void allocateMemory(int allocateMemory, String fid) // allocates memory to the stack for the current FunctionContext
     {
@@ -472,6 +473,16 @@ public class Context
     public String makeUnqiueLabel(String label)
     {
         return "_" + label + "_" + (this._makeUnq++);
+    }
+
+    public void setReturnLabel(String id)
+    {
+        this._returnLabels.put(id, makeUnqiueLabel("RETURN"));
+    }
+
+    public String getReturnLabel(String id)
+    {
+        return this._returnLabels.get(id);
     }
 
 

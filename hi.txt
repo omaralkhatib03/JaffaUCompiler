@@ -16,6 +16,8 @@ sw t0, -24(s0)
 addi t0, s0, -24
 lw t0, 0(t0)
 mv a0, t0
+j _RETURN_0
+_RETURN_0:
 lw ra, 28(sp)
 lw s0, 24(sp)
 addi sp, sp, 32
