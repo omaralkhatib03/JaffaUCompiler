@@ -2,9 +2,10 @@ package symbols;
 
 public class Variable extends CommonSymbol
 {
-    public Variable(String name, String type, int offset)
+    public Variable(String name, String type, int offset, boolean isGlobal)
     {
-        super(name, type);
+        super(name, type, isGlobal);
         this._offset = offset;
     }
+
 }

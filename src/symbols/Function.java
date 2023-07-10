@@ -10,9 +10,9 @@ public class Function extends Scope
     int freeBytes;
     int stackSize;
 
-    public Function(String id, String type)
+    public Function(String id, String type, boolean isGlobal)
     {
-        super(id, type);
+        super(id, type, isGlobal);
         this.returningContext = false; // when a function is declared, it cannot return
         this.currentSymbolOffset = -20; // the first allowed variable is offset by -20 from s0 initially (always i think)
         this.freeBytes = 0; // ra: (12 -> 16), s0: (16 -> 20) 

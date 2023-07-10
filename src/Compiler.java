@@ -3,7 +3,7 @@ import grammar.*;
 import grammar.cLexer;
 import grammar.cParser;
 import symbols.CommonSymbol;
-import symbols.Scope;
+import symbols.Function;
 import symbols.Struct;
 import symbols.Variable;
 
@@ -127,9 +127,14 @@ public class Compiler extends cBaseVisitor<String>
         return "";
     }
 
-    private CommonSymbol declareVariable(String id, String type, boolean addToQueue)
+    private CommonSymbol declareVariable(String id, String type, boolean addToQueue, boolean isGlobal)
     {
-        Variable var = new Variable(id, type, this.ctx.getCurrentFunction().getCurrentOffset()); // create variable
+        if (isGlobal)
+        {
+            // TODO: handle global variables
+            return null;
+        }
+        Variable var = new Variable(id, type, this.ctx.getCurrentFunction().getCurrentOffset(), isGlobal); // create variable
         this.ctx.getCurrentFunction().decrementSymbolOffset(typeSizeMap.get(type)); // decrement offset by size of variable
         this.ctx.allocateMemory(typeSizeMap.get(type), this.ctx.getCurrentFunction().getId());
         if (verbose) System.out.printf("Creating Variable: %s, type: %s \n", var.getId(), var.getType());
@@ -172,7 +177,7 @@ public class Compiler extends cBaseVisitor<String>
         } 
         else if (ctx.directDeclarator().varDecl != null)
         {
-            symbol = declareVariable(id, this.ctx.getDeclarationMode(), true);
+            symbol = declareVariable(id, this.ctx.getDeclarationMode(), true, this.ctx.isGlobalScope());
         }
         else
         {
@@ -223,7 +228,7 @@ public class Compiler extends cBaseVisitor<String>
             throw new RuntimeException("Error: Cannot find id");
         
         // only variables can be allocates this way, no need to insert a switch statement here
-        Variable symbol = new Variable(id, this.ctx.getDeclarationMode(), this.ctx.getCurrentFunction().getCurrentOffset()); // create variable
+        Variable symbol = new Variable(id, this.ctx.getDeclarationMode(), this.ctx.getCurrentFunction().getCurrentOffset(), this.ctx.isGlobalScope()); // create variable
         this.ctx.getCurrentFunction().decrementSymbolOffset(typeSizeMap.get(this.ctx.getDeclarationMode())); // decrement offset by size of variable
         this.ctx.allocateMemory(typeSizeMap.get(this.ctx.getDeclarationMode()), this.ctx.getCurrentFunction().getId());
 
@@ -278,7 +283,7 @@ public class Compiler extends cBaseVisitor<String>
         }
         else if (declarator.directDeclarator().varDecl != null)
         {
-            symbol = declareVariable(id, type,  false);
+            symbol = declareVariable(id, type,  false, this.ctx.isGlobalScope());
         }
         else
         {
@@ -327,7 +332,7 @@ public class Compiler extends cBaseVisitor<String>
             // System.out.printf("Function Body: \n%s\n", functionBodyString);
         }
 
-        this.ctx.addScope(functionName, functionType, true);
+        this.ctx.addScope(functionName, functionType, true, true);
         this.ctx.headerStringsMap.put(functionName, functionHeaderString);
         this.ctx.bodyStringsMap.put(functionName, functionBodyString);
         // get parameters ready
@@ -344,12 +349,14 @@ public class Compiler extends cBaseVisitor<String>
         visitChildren(ctx);
         if (verbose) System.out.printf("###################### Compilation Unit ################### \n");
 
-        try {
+        try 
+        {
             for (String i : this.ctx.headerStringsMap.keySet()) 
             {
                 if (verbose) System.out.printf("Fid: %s, StackSize: %s \n", i, this.ctx.getFunctionStackSize(i));
                 String stackDecStr = writeStackDecrement(this.ctx.getFunctionStackSize(i));
-                // if (verbose) System.out.printf("Called in Compilation unit, ENSURE THAT REGISTERS ARE EMPTY \n");
+                if (verbose) System.out.printf("Called in Compilation unit, ENSURE THAT REGISTERS ARE EMPTY \n");
+                if (verbose) this.ctx.printRegMaps();
                 String parameters = writeParameters(this.ctx.getFunctionParameters(i));
                 String stackIncStr = writeStackIncrement(this.ctx.getFunctionStackSize(i));
                 writer.write(this.ctx.headerStringsMap.get(i) + stackDecStr + parameters);
@@ -359,19 +366,21 @@ public class Compiler extends cBaseVisitor<String>
 
             writer.close();
 
-        } catch (Exception e) {
+        } 
+        catch (Exception e) 
+        {
             System.err.printf("Error: Cannot write to output file\n%s\n", e.toString());
-            return"";
-        }      
+            return "";
+        }    
 
         if (this.verbose)
         {
-            printFunctionSymbolTable();
             System.out.printf("###################### Compilation Unit END ################### \n");
-            this.ctx.printRegMaps();
+            this.ctx.printFunctionSymbolTable();
             this.ctx.printRegisterStackStatus();
             this.ctx.printAllSymbolTables();
         }
+
 
         return  "";
     }
@@ -469,9 +478,9 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////      Primary EXPRESSIONS      //////////////////////
     ///////////////////////////////////////////////////////////////////////
 
-    public void primaryExpressionConstant(cParser.PrimaryExpressionContext ctx)
+    public String primaryExprReturning(cParser.PrimaryExpressionContext ctx)
     {
-        Scope currentFunction = this.ctx.getCurrentFunction();
+        Function currentFunction = this.ctx.getCurrentFunction();
         String currentFunctionBody = this.ctx.bodyStringsMap.get(currentFunction.getId());
         String out = "";
         switch (currentFunction.getType()) {
@@ -502,6 +511,70 @@ public class Compiler extends cBaseVisitor<String>
             break;
         }
         this.ctx.bodyStringsMap.put(currentFunction.getId(), currentFunctionBody + out);
+        return currentFunction.getType();
+    }
+
+    public String primaryExpressionConstant(TerminalNode constantNode)
+    {
+        Function currFunction = this.ctx.getCurrentFunction();
+        String currFunctionBody = this.ctx.bodyStringsMap.get(currFunction.getId());
+        String constant = constantNode.getText();
+        String intRegex = "O*[0-9]+$|^0x[0-9a-fA-F]+"; // integer regex String    
+        String floatRegex = "[0-9]+\\.[0-9]+|[0-9]+\\.[0-9]+\\(e[+][0-9]+\\)?|0x[0-9]+\\.[0-9]+p-[0-9]+"; // float regex String
+        String charRegex = "\'[a-zA-Z0-9]\'"; // char regex String
+        String type = "";
+        if (verbose) System.out.printf("const: %s, regexMatch: %b\n", constant, constant.matches(intRegex));
+        if (constant.matches(intRegex))
+        {
+            type = "constant int";
+            String reg = this.ctx.getReg("s", "int", true);
+            this.ctx.bodyStringsMap.put(currFunction.getId(), currFunctionBody + writeLiInstruction(reg, constant) + "\n");
+            System.out.printf("s1: %b\n", this.ctx.getRegStatus("s1"));
+        }
+        else if (constant.matches(floatRegex))
+        {
+            type = "constant double"; // treat decimals as double by default 
+            // TODO: implement double/float constant
+        }
+        else if (constant.matches(charRegex))
+        {
+            type = "constant char";
+            // TODO: implement char constant
+        
+        }
+        if (type.equals("")) // could not identify type
+        {
+            System.err.printf("Error: Invalid constant %s\n", constant);
+            throw new RuntimeException();
+        }
+
+
+        return type;
+    }
+
+    public String primaryExpressionId(TerminalNode idNode)
+    {
+        String id = idNode.getText();
+        String type = "";
+        
+        if (!this.ctx.symbolExistsInScope(id))
+            throw new RuntimeException(String.format("Error: Symbol %s does not exist in scope", id));
+
+        CommonSymbol symbol = this.ctx.getSymbol(id);
+        type = symbol.getType();
+
+        // this will always load a pointer into the register at the top of the stack
+        String topReg = this.ctx.getReg("t", type, true);
+        if (symbol.isGlobal())
+        {
+            // TODO: implement global symbol
+        }
+        else
+        {
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeImmediateInstruction("addi", topReg, "s0", this.ctx.getSymbol(id).getOffset()) + "\n"); // loads pointer to symbol
+        }
+        
+        return type;
     }
 
     @Override
@@ -509,12 +582,16 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.Identifier() != null)
         {
-            // TODO: implement primary expression identifier
+            // if (this.ctx.getCurrentFunction().isReturning()); // TODO: handle returning identifiers
+
+            return primaryExpressionId(ctx.Identifier());
         }
         else if (ctx.Constant() != null)
         {
-            primaryExpressionConstant(ctx);
-            return "Constant: Done!\n";
+            if (this.ctx.getCurrentFunction().isReturning())
+                return primaryExprReturning(ctx);
+            
+            return primaryExpressionConstant(ctx.Constant());
         }
         else if (ctx.StringLiteral() != null)
         {
@@ -524,6 +601,7 @@ public class Compiler extends cBaseVisitor<String>
         {
             // TODO: implement primary expression expression
         }
+
         return "";
     }
 
@@ -532,6 +610,192 @@ public class Compiler extends cBaseVisitor<String>
     ///////////////////////////////////////////////////////////////////////
 
 
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////         EXPRESSIONS           //////////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+    // @Override
+    // public String visitMultiplicativeExpression(cParser.MultiplicativeExpressionContext ctx)
+    // {
+    //     // String type = visit(ctx.lhs);
+    //     String op = ctx.op.getText();
+        
+    //     switch (op) 
+    //     {
+    //         case "*":
+    //         {
+    //             // TODO: implement multiplication
+    //         }
+    //         break;
+    //         case "/":
+    //         {
+    //             // TODO: implement division
+    //         }
+    //         break;
+    //         case "%":
+    //         {
+    //             // TODO: implement modulus
+    //         }
+    //         break;
+    //     }
+        
+    //     return "";
+    // }
+
+    // @Override
+    // public String visitAdditiveExpression(cParser.AdditiveExpressionContext ctx)
+    // {
+    //     visit(ctx.lhs);
+    //     return "";
+    // }
+
+    // @Override
+    // public String visitShiftExpression(cParser.ShiftExpressionContext ctx)
+    // {
+    //     visit(ctx.lhs);
+    //     return "";
+    // }
+    
+    // @Override
+    // public String visitRelationalExpression(cParser.RelationalExpressionContext ctx)
+    // {
+    //     visit(ctx.lhs);
+    //     return "";
+    // }
+
+    // @Override
+    // public String visitEqualityExpression(cParser.EqualityExpressionContext ctx)
+    // {
+    //     visit(ctx.lhs);
+    //     return "";
+    // }
+
+    // @Override
+    // public String visitAndExpression(cParser.AndExpressionContext ctx)
+    // {
+    //     visit(ctx.lhs);
+    //     return "";
+    // }
+
+    // @Override
+    // public String visitExclusiveOrExpression(cParser.ExclusiveOrExpressionContext ctx)
+    // {
+    //     visit(ctx.lhs);
+    //     return "";
+    // }
+
+    // @Override
+    // public String visitInclusiveOrExpression(cParser.InclusiveOrExpressionContext ctx)
+    // {
+    //     visit(ctx.lhs);
+    //     return "";
+    // }
+
+    // @Override
+    // public String visitLogicalAndExpression(cParser.LogicalAndExpressionContext ctx)
+    // {   
+    //     visit(ctx.lhs);
+    //     return "";
+    // }
+
+    // @Override
+    // public String visitLogicalOrExpression(cParser.LogicalOrExpressionContext ctx)
+    // {
+    //     visit(ctx.lhs);
+    //     return "";
+    // }
+
+    @Override
+    public String visitAssignmentExpression(cParser.AssignmentExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+        {
+            return visit(ctx.getChild(0));
+        }
+        if (verbose)
+        {
+            System.out.printf("#########################################    Assignment Expression    #########################################\n");
+            System.out.printf("Assignment Expression: %s\n", ctx.getText());
+        }
+        String rhsType = visit(ctx.rightHandSide); // all expressions will return the type of variable they evaluated, i.e whats the type of the variable at the top of the stack
+        String topReg = this.ctx.getTopReg();
+        
+        if (typeSizeMap.containsKey(rhsType)) // constants return type "constant type", if we have a constant we done need to unpack the value
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", topReg, 0, topReg) + "\n"); // if what u picked up was a pointer, u need to use it here, thus unload it from location
+        // now top reg holds a value
+        String lhs = visit(ctx.leftHandSide); // get the pointer to the left hand side, a new register is put onto the stack
+        String op = ctx.assOp.getText(); // get the operator
+        switch (op) 
+        {
+            case "=":
+            {
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("sw", topReg, 0, this.ctx.getTopReg()) + "\n");
+            }
+            break;
+            case "*=":
+            {
+                // TODO: implement multiplication assignment
+            }
+            break;
+            case "/=":
+            {
+                // TODO: implement division assignment
+            }
+            break;
+            case "%=":
+            {
+                // TODO: implement modulus assignment
+            }
+            break;
+            case "+=":
+            {
+                // TODO: implement addition assignment
+            }
+            break;
+            case "-=":
+            {
+                // TODO: implement subtraction assignment
+            }
+            break;
+            case "<<=":
+            {
+                // TODO: implement left shift assignment
+            }
+            break;
+            case ">>=":
+            {
+                // TODO: implement right shift assignment
+            }
+            break;
+            case "&=":
+            {
+                // TODO: implement bitwise and assignment
+            }
+            break;
+            case "^=":
+            {
+                // TODO: implement bitwise xor assignment
+            }
+            break;
+            case "|=":
+            {
+                // TODO: implement bitwise or assignment
+            }
+            break;
+        }
+
+        this.ctx.clearStack(verbose);
+        if (verbose) System.out.printf("#########################################    Assignment Expression END #####################################\n");
+
+        return lhs;
+    }
+
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////       EXPRESSIONS END       ////////////////////////
+    ///////////////////////////////////////////////////////////////////////
+    
+    
     public static void main(String[] args) throws IOException, NoSuchFileException 
     {
         boolean verbose = false;
@@ -579,11 +843,6 @@ public class Compiler extends cBaseVisitor<String>
         System.out.printf("Compiled !\n");
     }
     
-
-    public void printFunctionSymbolTable()
-    {
-        this.ctx.printFunctionSymbolTable();
-    }
 
     private String writeStackDecrement(int offset)
     {

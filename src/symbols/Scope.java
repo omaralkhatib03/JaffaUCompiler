@@ -11,10 +11,11 @@ public class Scope extends CommonSymbol
     public Scope()
     {}
 
-    public Scope(String id, String type)
+    public Scope(String id, String type, boolean isGlobal)
     {
-        super(id, type);
+        super(id, type, isGlobal);
     }
+
 
     public void addSymbol(CommonSymbol symbol)
     {

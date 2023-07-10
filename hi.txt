@@ -8,6 +8,14 @@ sw s0, 24(sp)
 addi s0, sp, 32
 sw a0, -20(s0)
 sw a1, -24(s0)
+li s1, 10
+addi t0, s0, -28
+sw s1, 0(t0)
+addi t0, s0, -20
+lw t0, 0(t0)
+addi t1, s0, -28
+sw t0, 0(t1)
+li a1, 5
 mv a0, a1
 lw ra, 28(sp)
 lw s0, 24(sp)

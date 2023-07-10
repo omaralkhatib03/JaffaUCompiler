@@ -43,52 +43,52 @@ castExpression
     ;
 
 multiplicativeExpression
-    :   castExpression (op=('*'|'/'|'%') castExpression)*
+    :   lhs=castExpression (op=('*'|'/'|'%') rhs=castExpression)*
     ;
 
 additiveExpression
-    :   multiplicativeExpression (op=('+'|'-') multiplicativeExpression)*
+    :   lhs=multiplicativeExpression (op=('+'|'-') rhs=multiplicativeExpression)*
     ;
 
 shiftExpression
-    :   additiveExpression (op=('<<'|'>>') additiveExpression)*
+    :   lhs=additiveExpression (op=('<<'|'>>') rhs=additiveExpression)*
     ;
 
 relationalExpression
-    :   shiftExpression (op=('<'|'>'|'<='|'>=') shiftExpression)*
+    :   lhs=shiftExpression (op=('<'|'>'|'<='|'>=') rhs=shiftExpression)*
     ;
 
 equalityExpression
-    :   relationalExpression (op=('=='| '!=') relationalExpression)*
+    :   lhs=relationalExpression (op=('=='| '!=') rhs=relationalExpression)*
     ;
 
 andExpression
-    :   equalityExpression ( op='&' equalityExpression)*
+    :   lhs=equalityExpression (op='&' rhs=equalityExpression)*
     ;
 
 exclusiveOrExpression
-    :   andExpression (op='^' andExpression)*
+    :   lhs=andExpression (op='^' rhs=andExpression)*
     ;
 
 inclusiveOrExpression
-    :   exclusiveOrExpression (op='|' exclusiveOrExpression)*
+    :   lhs=exclusiveOrExpression (op='|' rhs=exclusiveOrExpression)*
     ;
 
 logicalAndExpression
-    :   inclusiveOrExpression (op='&&' inclusiveOrExpression)*
+    :   lhs=inclusiveOrExpression (op='&&' rhs=inclusiveOrExpression)*
     ;
 
 logicalOrExpression
-    :   logicalAndExpression ( op='||' logicalAndExpression)*
+    :   lhs=logicalAndExpression (op='||' rhs=logicalAndExpression)*
     ;
 
-conditionalExpression
-    :   logicalOrExpression ('?' expression ':' conditionalExpression)?
+ternaryExpression
+    :   logicalOrExpression ('?' expression ':' ternaryExpression)?
     ;
 
 assignmentExpression
-    :   conditionalExpression
-    |   unaryExpression assOp=assignmentOperator assignmentExpression
+    :   ternaryExpression
+    |   leftHandSide=unaryExpression assOp=assignmentOperator rightHandSide=assignmentExpression
     ;
 
 assignmentOperator
@@ -100,7 +100,7 @@ expression
     ;
 
 constantExpression
-    :   conditionalExpression
+    :   ternaryExpression
     ;
 
 declaration

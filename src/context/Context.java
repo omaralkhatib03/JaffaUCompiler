@@ -19,50 +19,58 @@ class RegisterManager
 {
     private int paremeterizationMode = 0; // 0 = no parameterization, 1 = parameterizing
 
-    private SortedMap<String, BitSet> tmpRegs = new TreeMap<>(Map.ofEntries 
-    (
-        entry("t0", new BitSet(2)),
-        entry("t1", new BitSet(2)),
-        entry("t2", new BitSet(2)),
-        entry("t3", new BitSet(2)),
-        entry("t4", new BitSet(2)),
-        entry("t5", new BitSet(2)),
-        entry("t6", new BitSet(2)),
-        entry("t7", new BitSet(1)), // t7 to t11 only exist for float registers
-        entry("t8", new BitSet(1)),
-        entry("t9", new BitSet(1)),
-        entry("t10", new BitSet(1)),
-        entry("t11", new BitSet(1))
+    private SortedMap<String, BitSet> tmpRegs;
+
+    private SortedMap<String, BitSet> argRegs;
+
+    private SortedMap<String, BitSet> savedRegs;
+
+    public RegisterManager()
+    {
+        this.tmpRegs = new TreeMap<>(Map.ofEntries 
+        (
+            entry("t0", new BitSet(2)),
+            entry("t1", new BitSet(2)),
+            entry("t2", new BitSet(2)),
+            entry("t3", new BitSet(2)),
+            entry("t4", new BitSet(2)),
+            entry("t5", new BitSet(2)),
+            entry("t6", new BitSet(2)),
+            entry("t7", new BitSet(1)), // t7 to t11 only exist for float registers
+            entry("t8", new BitSet(1)),
+            entry("t9", new BitSet(1)),
+            entry("t10", new BitSet(1)),
+            entry("t11", new BitSet(1))
     ));
 
+        this.argRegs = new TreeMap<>(Map.ofEntries
+        (
+            entry("a0", new BitSet(2)),
+            entry("a1", new BitSet(2)),
+            entry("a2", new BitSet(2)),
+            entry("a3", new BitSet(2)),
+            entry("a4", new BitSet(2)),
+            entry("a5", new BitSet(2)),
+            entry("a6", new BitSet(2)),
+            entry("a7", new BitSet(2))
+        ));
 
-    private SortedMap<String, BitSet> argRegs = new TreeMap<>(Map.ofEntries
-    (
-        entry("a0", new BitSet(2)),
-        entry("a1", new BitSet(2)),
-        entry("a2", new BitSet(2)),
-        entry("a3", new BitSet(2)),
-        entry("a4", new BitSet(2)),
-        entry("a5", new BitSet(2)),
-        entry("a6", new BitSet(2)),
-        entry("a7", new BitSet(2))
-    ));
 
-
-    private SortedMap<String, BitSet> savedRegs = new TreeMap<>(Map.ofEntries
-    (
-        entry("s1", new BitSet(2)),
-        entry("s2", new BitSet(2)),
-        entry("s3", new BitSet(2)),
-        entry("s4", new BitSet(2)),
-        entry("s5", new BitSet(2)),
-        entry("s6", new BitSet(2)),
-        entry("s7", new BitSet(2)),
-        entry("s8", new BitSet(2)),
-        entry("s9", new BitSet(2)),
-        entry("s10", new BitSet(2)),
-        entry("s11", new BitSet(2))
-    ));
+        this.savedRegs = new TreeMap<>(Map.ofEntries
+        (
+            entry("s1", new BitSet(2)),
+            entry("s2", new BitSet(2)),
+            entry("s3", new BitSet(2)),
+            entry("s4", new BitSet(2)),
+            entry("s5", new BitSet(2)),
+            entry("s6", new BitSet(2)),
+            entry("s7", new BitSet(2)),
+            entry("s8", new BitSet(2)),
+            entry("s9", new BitSet(2)),
+            entry("s10", new BitSet(2)),
+            entry("s11", new BitSet(2))
+        ));
+    }
 
     public String getZero()
     {
@@ -202,30 +210,40 @@ class RegisterManager
     }
 
 
-
     ///////////////////////////////////////////////////////////////////
     ////////////////          Printer             /////////////////////
     ///////////////////////////////////////////////////////////////////
 
+    public void printBitSet(BitSet bs)
+    {
+        for( int i = 0; i <= bs.length();  i++ )
+        {
+            System.out.printf("%d", ((bs.get(i)) ? 1 : 0));
+        }
+        System.out.printf("\n");
+    }
 
     public void printRegMaps()
     {
         System.out.println("tmpRegs: ");
-        for (Map.Entry<String, BitSet> entry : tmpRegs.entrySet())
+        for (Map.Entry<String, BitSet> entry : this.tmpRegs.entrySet())
         {
-            System.out.println(entry.getKey() + " : " + entry.getValue());
+            System.out.print(entry.getKey() + ": ");
+            printBitSet(entry.getValue());
         }
 
         System.out.println("argRegs: ");
-        for (Map.Entry<String, BitSet> entry : argRegs.entrySet())
+        for (Map.Entry<String, BitSet> entry : this.argRegs.entrySet())
         {
-            System.out.println(entry.getKey() + " : " + entry.getValue());
+            System.out.print(entry.getKey() + ": ");
+            printBitSet(entry.getValue());
         }
 
         System.out.println("savedRegs: ");
-        for (Map.Entry<String, BitSet> entry : savedRegs.entrySet())
+        for (Map.Entry<String, BitSet> entry : this.savedRegs.entrySet())
         {
-            System.out.println(entry.getKey() + " : " + entry.getValue());
+            System.out.print(entry.getKey() + ": ");
+            printBitSet(entry.getValue());
         }
     }
 
@@ -254,7 +272,7 @@ public class Context
         Function currentFunction = _FunctionSymbolTable.get(fid); 
         int functionStackSize = currentFunction.getStackSize();
         int freeBytes = currentFunction.getFreeBytes();
-        int requiredMemory = allocateMemory - freeBytes; // required memory = freeBytes - allocateMemory
+        int requiredMemory = allocateMemory - freeBytes; // required memory = allocateMemory - freeBytes
 
         if (requiredMemory >= 0) // if we need more memory
         {
@@ -269,11 +287,11 @@ public class Context
         }
     }
 
-    public void addScope(String id, String type, boolean isFunction)
+    public void addScope(String id, String type, boolean isFunction, boolean isGlobal)
     {
         if (isFunction)
         {
-            Function function = new Function(id, type);
+            Function function = new Function(id, type, isGlobal);
             _FunctionSymbolTable.put(id, function);
             _GlobalSymbolTable.put(id, function);
             _functionScopeStack.push(function); // set current function context
@@ -386,7 +404,6 @@ public class Context
         return _scopeStack.isEmpty();
     }
 
-
     public void addInitializer(CommonSymbol symbol)
     {
         this._inittializerQueue.add(symbol);
@@ -417,6 +434,39 @@ public class Context
         this.regManager.clearAllRegisters();
     }
     
+    public boolean symbolExistsInScope(String id)
+    {
+        return (this._GlobalSymbolTable.containsKey(id) || this.getTopScope().getSymbol(id) != null); // does the symbol exist on the correct scope ?
+    }
+
+    public CommonSymbol getSymbol(String id)
+    {
+        if (this.getTopScope().getSymbol(id) != null)
+            return this.getTopScope().getSymbol(id);
+
+        if (this._GlobalSymbolTable.containsKey(id))
+            return this._GlobalSymbolTable.get(id);
+
+        return null;
+    }
+
+    public void clearStack(boolean verbose)
+    {
+        while (!this.registerStack.empty())
+        {
+            if (verbose)
+                System.out.printf("%s\n", clearTopOfStack());
+            else
+                clearTopOfStack();
+        }
+    }
+
+    public boolean getRegStatus(String reg)
+    {
+        return this.regManager.getRegStatus(reg);
+    }
+
+
     //////////////////////////////////////////////////
     ////////////////     Printers     ////////////////
     //////////////////////////////////////////////////
@@ -445,6 +495,10 @@ public class Context
     public void printRegisterStackStatus()
     {
         System.out.printf("Register Stack Size: %s\n", this.registerStack.size());
+        while (!registerStack.empty())
+        {
+            System.out.printf("%s \n", this.registerStack.pop());
+        }
     }
 
     public void printAllSymbolTables()
