@@ -1164,7 +1164,31 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////       EXPRESSIONS END       ////////////////////////
     ///////////////////////////////////////////////////////////////////////
     
-    
+        
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        CompoundStatement        ////////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+    // TODO: implement scopes here
+    // @Override 
+    // public String visitCompoundStatement(cParser.CompoundStatementContext ctx)
+    // {
+    //     if (verbose)
+    //     {
+    //         System.out.printf("#########################################    Compound Statement    #########################################\n");
+    //         System.out.printf("Compound Statement: %s\n", ctx.getText());
+    //     }
+    //     this.ctx.addScope("CompoundStatement", "No Type", false, false);
+    //     visitChildren(ctx);
+    //     if (verbose) System.out.printf("#########################################    Compound Statement END #####################################\n");
+    //     return "";
+    // }
+
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        CompoundStatement END    ////////////////////
+    ///////////////////////////////////////////////////////////////////////
+
     public static void main(String[] args) throws IOException, NoSuchFileException 
     {
         boolean verbose = false;
