@@ -709,6 +709,41 @@ public class Compiler extends cBaseVisitor<String>
     //     return "";
     // }
 
+    private void writeAssign(String funcId, String rhsReg, String type, String instr, String topReg)
+    {
+        switch (type) 
+        {
+            case "float":
+            {
+                // TODO: implement float parameter write
+            }
+            break;
+            case "double":
+            {
+                // TODO: implement double parameter write
+            }
+            break;
+            case "char":
+            {
+                // TODO: implement char parameter write
+            }
+            break;
+            case "unsigned":
+            {
+                // TODO: implement unsigned parameter write
+            }
+            break;
+            default: // int default
+            {
+                String tmpReg = this.ctx.getReg("t", type, false);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, topReg) + "\n");
+                this.ctx.writeBodyString(funcId, writeRegInstruction(instr, tmpReg, tmpReg, rhsReg) + "\n");
+                this.ctx.clearReg(tmpReg);
+            }
+            break;
+        }
+    } 
+
     @Override
     public String visitAssignmentExpression(cParser.AssignmentExpressionContext ctx)
     {
@@ -722,10 +757,10 @@ public class Compiler extends cBaseVisitor<String>
             System.out.printf("Assignment Expression: %s\n", ctx.getText());
         }
         String rhsType = visit(ctx.rightHandSide); // all expressions will return the type of variable they evaluated, i.e whats the type of the variable at the top of the stack
-        String topReg = this.ctx.getTopReg();
+        String rhsReg = this.ctx.getTopReg();
         
         if (typeSizeMap.containsKey(rhsType)) // constants return type "constant type", if we have a constant we done need to unpack the value
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", topReg, 0, topReg) + "\n"); // if what u picked up was a pointer, u need to use it here, thus unload it from location
+            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", rhsReg, 0, rhsReg) + "\n"); // if what u picked up was a pointer, u need to use it here, thus unload it from location
         // now top reg holds a value
         String lhsType = visit(ctx.leftHandSide); // get the pointer to the left hand side, a new register is put onto the stack
         String op = ctx.assOp.getText(); // get the operator
@@ -734,88 +769,57 @@ public class Compiler extends cBaseVisitor<String>
         {
             case "=":
             {
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("sw", topReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("sw", rhsReg, 0, this.ctx.getTopReg()) + "\n");
             }
             break;
             case "*=":
             {
-                // TODO: implement multiplication assignment
-                String tmpReg = this.ctx.getReg("t", lhsType, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
-                this.ctx.writeBodyString(funcId, writeRegInstruction("mul", tmpReg, tmpReg, topReg) + "\n");
-                this.ctx.clearReg(tmpReg);
+                writeAssign(funcId, rhsReg, lhsType, "mul", this.ctx.getTopReg());
             }
             break;
             case "/=":
             {
-                String tmpReg = this.ctx.getReg("t", lhsType, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
-                this.ctx.writeBodyString(funcId, writeRegInstruction("div", tmpReg, tmpReg, topReg) + "\n");
-                this.ctx.clearReg(tmpReg);
+                writeAssign(funcId, rhsReg, lhsType, "div", this.ctx.getTopReg());
             }
             break;
             case "%=":
             {
-                String tmpReg = this.ctx.getReg("t", lhsType, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
-                this.ctx.writeBodyString(funcId, writeRegInstruction("rem", tmpReg, tmpReg, topReg) + "\n");
-                this.ctx.clearReg(tmpReg);
+                writeAssign(funcId, rhsReg, lhsType, "rem", this.ctx.getTopReg());
             }
             break;
             case "+=":
             {
-                String tmpReg = this.ctx.getReg("t", lhsType, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
-                this.ctx.writeBodyString(funcId, writeRegInstruction("add", tmpReg, tmpReg, topReg) + "\n");
-                this.ctx.clearReg(tmpReg);
+                writeAssign(funcId, rhsReg, lhsType, "add", this.ctx.getTopReg());
             }
             break;
             case "-=":
             {
-                String tmpReg = this.ctx.getReg("t", lhsType, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
-                this.ctx.writeBodyString(funcId, writeRegInstruction("sub", tmpReg, tmpReg, topReg) + "\n");
-                this.ctx.clearReg(tmpReg);
+                writeAssign(funcId, rhsReg, lhsType, "sub", this.ctx.getTopReg());
             }
             break;
             case "<<=":
             {
-                String tmpReg = this.ctx.getReg("t", lhsType, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
-                this.ctx.writeBodyString(funcId, writeRegInstruction("sll", tmpReg, tmpReg, topReg) + "\n");
-                this.ctx.clearReg(tmpReg);
+                writeAssign(funcId, rhsReg, lhsType, "sll", this.ctx.getTopReg());
             }
             break;
             case ">>=":
             {
-                String tmpReg = this.ctx.getReg("t", lhsType, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
-                this.ctx.writeBodyString(funcId, writeRegInstruction("sra", tmpReg, tmpReg, topReg) + "\n");
-                this.ctx.clearReg(tmpReg);
+                writeAssign(funcId, rhsReg, lhsType, "sra", this.ctx.getTopReg());
             }
             break;
             case "&=":
             {
-                String tmpReg = this.ctx.getReg("t", lhsType, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
-                this.ctx.writeBodyString(funcId, writeRegInstruction("and", tmpReg, tmpReg, topReg) + "\n");
-                this.ctx.clearReg(tmpReg);
+                writeAssign(funcId, rhsReg, lhsType, "and", this.ctx.getTopReg());
             }
             break;
             case "^=":
             {
-                String tmpReg = this.ctx.getReg("t", lhsType, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg() + "\n"));
-                this.ctx.writeBodyString(funcId, writeRegInstruction("xor", tmpReg, tmpReg, topReg) + "\n");
-                this.ctx.clearReg(tmpReg);
+                writeAssign(funcId, rhsReg, lhsType, "xor", this.ctx.getTopReg());
             }
             break;
             case "|=":
             {
-                String tmpReg = this.ctx.getReg("t", lhsType, false);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, 0, this.ctx.getTopReg() + "\n"));
-                this.ctx.writeBodyString(funcId, writeRegInstruction("or", tmpReg, tmpReg, topReg) + "\n");
-                this.ctx.clearReg(tmpReg);
+                writeAssign(funcId, rhsReg, lhsType, "or", this.ctx.getTopReg());
             }
             break;
         }
