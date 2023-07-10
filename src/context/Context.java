@@ -240,10 +240,8 @@ public class Context
 
 
     // privates
-    private Stack <String> _functionScopeStack = new Stack<String>(); // stack of function names
-    private Map <String, Integer> _functionFreeBytes = new HashMap<String, Integer>();
-    private Map <String, Integer> _functionOffsets = new HashMap<String, Integer>();
-    private Map <String, Scope> _FunctionSymbolTable = new HashMap<String, Scope>(); // symbol table
+    private Stack <Function> _functionScopeStack = new Stack<Function>(); // stack of functions
+    private Map <String, Function> _FunctionSymbolTable = new HashMap<String, Function>(); // symbol table
     private Map <String, CommonSymbol> _GlobalSymbolTable = new HashMap<String, CommonSymbol>(); // symbol table
     private RegisterManager regManager = new RegisterManager();
     private Stack <String> registerStack = new Stack<>();
@@ -251,49 +249,47 @@ public class Context
     private Queue <CommonSymbol> _inittializerQueue = new LinkedList<CommonSymbol>();
     private Stack <Scope> _scopeStack = new Stack<Scope>(); // stack of scopes
 
-    public void allocateMemory(int allocateMemory) // allocates memory to the stack for the current FunctionContext
+    public void allocateMemory(int allocateMemory, String fid) // allocates memory to the stack for the current FunctionContext
     {
-        String currentFunction = _functionScopeStack.peek();
-        int functionOffset = _functionOffsets.get(currentFunction);
-        int freeBytes = _functionFreeBytes.get(currentFunction);
-        int requiredMemory = freeBytes - allocateMemory; // required memory = freeBytes - allocateMemory
+        Function currentFunction = _FunctionSymbolTable.get(fid); 
+        int functionStackSize = currentFunction.getStackSize();
+        int freeBytes = currentFunction.getFreeBytes();
+        int requiredMemory = allocateMemory - freeBytes; // required memory = freeBytes - allocateMemory
 
         if (requiredMemory >= 0) // if we need more memory
         {
-            int memoryToAdd = (requiredMemory % 16 == 0) ? (requiredMemory % 16) + requiredMemory + 16 : (requiredMemory % 16) + requiredMemory; // memoryToAdd = (requiredMemory % 16) + requiredMemory // rounds up to nearest larger multiple of 16
-            int newFreeBytes = (requiredMemory % 16 == 0) ? 16 : (requiredMemory % 16); // newFreeBytes = freeBytes - memoryToSet
-            setFunctionFreeBytes(currentFunction, newFreeBytes); // set new free bytes
-            setFunctionOffset(currentFunction, functionOffset + memoryToAdd); // set new offset
+            int memoryToAdd = (16 - (requiredMemory % 16)) + requiredMemory;
+            int newFreeBytes = memoryToAdd - requiredMemory;
+            currentFunction.setFreeBytes(newFreeBytes);    
+            currentFunction.setStackSize(functionStackSize + memoryToAdd);
         }
         else // if we dont need more memory
         {
-            setFunctionFreeBytes(currentFunction, freeBytes - allocateMemory); // set new free bytes
+            currentFunction.setFreeBytes(freeBytes - allocateMemory);
         }
-    }
-
-
-    private void setFunctionFreeBytes( String id, int freeBytes )
-    {
-        _functionFreeBytes.put(id, freeBytes);
-    }
-
-    private void setFunctionOffset( String id, int offset )
-    {
-        _functionOffsets.put(id, offset);
     }
 
     public void addScope(String id, String type, boolean isFunction)
     {
-        Scope scope = new Scope(id, type, isFunction);
-        _FunctionSymbolTable.put(id, scope);
-        _GlobalSymbolTable.put(id, scope);
-        _functionFreeBytes.put(id, 0);
-        _functionOffsets.put(id, 16); 
-        _functionScopeStack.push(id); // set current function context
+        if (isFunction)
+        {
+            Function function = new Function(id, type);
+            _FunctionSymbolTable.put(id, function);
+            _GlobalSymbolTable.put(id, function);
+            _functionScopeStack.push(function); // set current function context
+            _scopeStack.push(function); // push scope to stack
+            return;
+        }
+        Scope scope = new Scope();
         _scopeStack.push(scope); // push scope to stack
     }
 
-    public Scope getFunction(String id)
+    public int getFunctionStackSize(String id)
+    {
+        return this._FunctionSymbolTable.get(id).getStackSize();
+    }
+
+    public Function getFunction(String id)
     {
         return _FunctionSymbolTable.get(id);
     }
@@ -301,11 +297,6 @@ public class Context
     public CommonSymbol getGlobalSymbol(String id)
     {
         return _GlobalSymbolTable.get(id);
-    }
-
-    public int getFunctionOffset(String id)
-    {
-        return _functionOffsets.get(id);
     }
 
     public ArrayList<CommonSymbol> getFunctionParameters(String id)
@@ -333,9 +324,9 @@ public class Context
         return this.registerStack.peek();
     }
 
-    public Scope getCurrentFunction()
+    public Function getCurrentFunction()
     {
-        return _FunctionSymbolTable.get(_functionScopeStack.peek());
+        return _functionScopeStack.peek();
     }
 
     public void setFunctionReturn(String id, boolean isReturning)

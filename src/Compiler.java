@@ -130,7 +130,9 @@ public class Compiler extends cBaseVisitor<String>
     private CommonSymbol declareVariable(String id, String type, boolean addToQueue)
     {
         Variable var = new Variable(id, type, this.ctx.getCurrentFunction().getCurrentOffset()); // create variable
-        this.ctx.getCurrentFunction().decrementOffset(typeSizeMap.get(type)); // decrement offset by size of variable
+        this.ctx.getCurrentFunction().decrementSymbolOffset(typeSizeMap.get(type)); // decrement offset by size of variable
+        this.ctx.allocateMemory(typeSizeMap.get(type), this.ctx.getCurrentFunction().getId());
+        if (verbose) System.out.printf("Creating Variable: %s, type: %s \n", var.getId(), var.getType());
         if (addToQueue)
             this.ctx.addInitializer(var); // add variable to initializer queue
         return var;
@@ -220,8 +222,10 @@ public class Compiler extends cBaseVisitor<String>
         if (id == null)
             throw new RuntimeException("Error: Cannot find id");
         
+        // only variables can be allocates this way, no need to insert a switch statement here
         Variable symbol = new Variable(id, this.ctx.getDeclarationMode(), this.ctx.getCurrentFunction().getCurrentOffset()); // create variable
-        this.ctx.getCurrentFunction().decrementOffset(typeSizeMap.get(this.ctx.getDeclarationMode())); // decrement offset by size of variable
+        this.ctx.getCurrentFunction().decrementSymbolOffset(typeSizeMap.get(this.ctx.getDeclarationMode())); // decrement offset by size of variable
+        this.ctx.allocateMemory(typeSizeMap.get(this.ctx.getDeclarationMode()), this.ctx.getCurrentFunction().getId());
 
         if (this.ctx.isGlobalScope())
         {
@@ -258,6 +262,7 @@ public class Compiler extends cBaseVisitor<String>
             throw new RuntimeException("Error: Cannot find declarator, check syntax");
 
         CommonSymbol symbol = null;
+
 
         if (declarator.pointer() != null) // if there is a pointer, we need to add it to the type
         {
@@ -325,7 +330,6 @@ public class Compiler extends cBaseVisitor<String>
         this.ctx.addScope(functionName, functionType, true);
         this.ctx.headerStringsMap.put(functionName, functionHeaderString);
         this.ctx.bodyStringsMap.put(functionName, functionBodyString);
-        
         // get parameters ready
         if (ctx.declarator().directDeclarator().param != null)
             prepareParameter(ctx.declarator().directDeclarator().param);
@@ -343,10 +347,11 @@ public class Compiler extends cBaseVisitor<String>
         try {
             for (String i : this.ctx.headerStringsMap.keySet()) 
             {
-                String stackDecStr = writeStackDecrement(this.ctx.getFunctionOffset(i));
+                if (verbose) System.out.printf("Fid: %s, StackSize: %s \n", i, this.ctx.getFunctionStackSize(i));
+                String stackDecStr = writeStackDecrement(this.ctx.getFunctionStackSize(i));
                 // if (verbose) System.out.printf("Called in Compilation unit, ENSURE THAT REGISTERS ARE EMPTY \n");
                 String parameters = writeParameters(this.ctx.getFunctionParameters(i));
-                String stackIncStr = writeStackIncrement(this.ctx.getFunctionOffset(i));
+                String stackIncStr = writeStackIncrement(this.ctx.getFunctionStackSize(i));
                 writer.write(this.ctx.headerStringsMap.get(i) + stackDecStr + parameters);
                 writer.write(this.ctx.bodyStringsMap.get(i) + stackIncStr);
                 writer.write("\n");

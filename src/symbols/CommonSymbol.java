@@ -6,6 +6,11 @@ public class CommonSymbol
     protected String _type;
     protected int _offset; // offset from s0
 
+    public CommonSymbol()
+    {
+        // nothing assigned here, "for scopes"
+    }
+
     public CommonSymbol(String id, String type)
     {
         this._id = id;
