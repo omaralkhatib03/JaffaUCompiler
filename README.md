@@ -40,7 +40,7 @@ The only requirments are:
 * Run the MakeFile and shell files in a bash terminal, not a windows terminal. (For Windows use cygwin or WSL)
 * ./qtest.sh should be run on a bash terminal, (i think replacing java with java.exe should allow you to run it on windows terminal)
 
-## Scipts 
+## Scripts 
 * ./test.sh should be run in the docker container provided (Docker container might take a while to build)
 * ./qtest.sh by defualt will compiler the source coude in ./compiler_tests/_example/example.c 
 
