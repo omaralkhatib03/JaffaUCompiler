@@ -1,7 +1,7 @@
 # JaffaUCompiler
 JaffaUCompiler is an ANSI C to RISC-V compiler written in java. The compiler uses ANTLR 4.13.0 to create an AST which is then traversed using a Visitor class to generate code. The goal of this project was to learn java as well as demonstrate key ideas that should be taken into acount when using an OOP language. The compiler passes 30/88 tests at the moment. (This will be improved as more features get added). At the minute the compiler can evauluate only a subsection of integer operations. These include declaring variables, assigning to them and returning them from funcitons.
 
-## Compiler Features
+## What Features of ANSI C the Compiler can compile
 
 -[x] a file containing just a single function with no arguments
 
