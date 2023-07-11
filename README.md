@@ -33,7 +33,8 @@ In order to understand the Java Build system, a Make file was created. The make 
 
 ## Portable
 
-The compiler was also made to demonstrate how portable java is. The compiler does not require the user to download ANTLR or have it on their system. 
+The compiler was also made to demonstrate how portable java is. The compiler does not require the user to download ANTLR or have it on their system. However the main reason as to why java is portable is that it is platform independent. Hence the JVM is what interperts byte code found in .class files, unlike other programming languages where the compilation system depends on some aspect of the OS its running on.
+
 The only requirments are: 
 * Java version 11+
 * Run the MakeFile and shell files in a bash terminal, not a windows terminal. (For Windows use cygwin or WSL)
