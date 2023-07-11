@@ -36,17 +36,14 @@ In order to understand the Java Build system, a Make file was created. The make 
 The compiler was also made to demonstrate how portable java is. The compiler does not require the user to download ANTLR or have it on their system. 
 The only requirments are: 
 * Java version 11+
-* Run the MakeFile in a files in a bash terminal, not a windows terminal. (For Windows use cygwin or WSL)
-
-Or if the user only intends to use the compiler, then run the windows shell script.
+* Run the MakeFile and shell files in a bash terminal, not a windows terminal. (For Windows use cygwin or WSL)
+* ./qtest.sh should be run on a bash terminal, (i think replacing java with java.exe should allow you to run it on windows terminal)
 
 ## Scipts 
-* ./test should be run in the docker container provided (Docker container might take a while to build)
-* the windows script by defualt will compiler the source coude in ./compiler_tests/_example/example.c 
-
+* ./test.sh should be run in the docker container provided (Docker container might take a while to build)
+* ./qtest.sh by defualt will compiler the source coude in ./compiler_tests/_example/example.c 
 
 ## What Features of ANSI C the Compiler can compile
-
 - [x] a file containing just a single function with no arguments
 - [x] variables of `int` type
 - [x] local variables
