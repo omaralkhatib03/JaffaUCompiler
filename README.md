@@ -17,8 +17,7 @@ JaffaUCompiler is an ANSI C to RISC-V compiler written in java. The compiler use
 
 -[] files containing multiple functions that call each other
 
--[x] functions that take up to four parameters
-
+-[x] functions that take up to four parameter
 -[] for loops
 
 -[] arrays declared globally (i.e. outside of any function in your file)
