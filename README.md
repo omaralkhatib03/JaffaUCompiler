@@ -28,7 +28,7 @@ In order to understand the Java Build system, a Make file was created. The make 
 2. Add 'package grammar;' to the beginning of the java files to allow the Compiler to import them as a package
 3. (Optional) Compile the grammar files seperatley 
 (This target is commented in the make file as it is unnecessary)
-4. Compiler the Compiler using javac (Requires adding some more dirs into the class path)
+4. Compile the Compiler using javac (Requires adding some more dirs into the class path)
 5. Run the Compiler.class in the bin directory (Requires adding dirs to classpath as well, see `qtest.sh`)
 
 ## Portable
