@@ -262,12 +262,12 @@ public class Context
     private Map <String, Function> _FunctionSymbolTable = new HashMap<String, Function>(); // symbol table
     private Map <String, CommonSymbol> _GlobalSymbolTable = new HashMap<String, CommonSymbol>(); // symbol table
     private RegisterManager regManager = new RegisterManager();
-    private Stack <String> registerStack = new Stack<>();
+    private Stack <String> registerStack = new Stack<String>();
     private String declarationMode = "";
     private Queue <CommonSymbol> _inittializerQueue = new LinkedList<CommonSymbol>();
     private Stack <Scope> _scopeStack = new Stack<Scope>(); // stack of scopes
     private int _makeUnq = 0;
-
+    private Map <String, String> _returnLabels = new HashMap<String, String>(); // symbol table
 
     public void allocateMemory(int allocateMemory, String fid) // allocates memory to the stack for the current FunctionContext
     {
@@ -300,7 +300,7 @@ public class Context
             _scopeStack.push(function); // push scope to stack
             return;
         }
-        Scope scope = new Scope();
+        Scope scope = new Scope(id);
         _scopeStack.push(scope); // push scope to stack
     }
 
@@ -398,7 +398,10 @@ public class Context
 
     public void addLocalSymbol(CommonSymbol symbol)
     {
-        getTopScope().addSymbol(symbol); // add symbol to current scope
+        if (getTopScope().getSymbol(symbol.getId()) == null)
+            getTopScope().addSymbol(symbol); // add symbol to current scope
+        else
+            throw new IllegalArgumentException("Symbol already exists in scope");
     }
 
     public boolean isGlobalScope()
@@ -438,13 +441,27 @@ public class Context
     
     public boolean symbolExistsInScope(String id)
     {
+        for (Scope i : this._scopeStack)
+        {
+            if (i.getSymbol(id) != null)
+                return true;
+        }
         return (this._GlobalSymbolTable.containsKey(id) || this.getTopScope().getSymbol(id) != null); // does the symbol exist on the correct scope ?
     }
 
+    @SuppressWarnings("unchecked")
     public CommonSymbol getSymbol(String id)
     {
-        if (this.getTopScope().getSymbol(id) != null)
-            return this.getTopScope().getSymbol(id);
+        Stack<Scope> tmpStack = (Stack<Scope>) this._scopeStack.clone();
+        
+        
+        while (!tmpStack.isEmpty())
+        {
+            Scope currentScope = tmpStack.pop();
+            CommonSymbol symbol = currentScope.getSymbol(id);
+            if (symbol != null)
+                return symbol;
+        }
 
         if (this._GlobalSymbolTable.containsKey(id))
             return this._GlobalSymbolTable.get(id);
@@ -474,6 +491,20 @@ public class Context
         return "_" + label + "_" + (this._makeUnq++);
     }
 
+    public void setReturnLabel(String id)
+    {
+        this._returnLabels.put(id, makeUnqiueLabel("RETURN"));
+    }
+
+    public String getReturnLabel(String id)
+    {
+        return this._returnLabels.get(id);
+    }
+
+    public void removeTopScope()
+    {
+        this._scopeStack.pop();
+    }
 
     //////////////////////////////////////////////////
     ////////////////     Printers     ////////////////
@@ -500,7 +531,7 @@ public class Context
         this.regManager.printRegMaps();
     }
 
-    public void printRegisterStackStatus()
+    public void printRegisterStackStatus() // ONLY USE THIS AT THE END OF THE PROGRAM
     {
         System.out.printf("Register Stack Size: %s\n", this.registerStack.size());
         while (!registerStack.empty())
@@ -519,6 +550,16 @@ public class Context
         {
             System.out.printf("Printing Local Symbol Table for Function: %s\n", i);
             _FunctionSymbolTable.get(i).printSymbolTable();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public void printScopeStack()
+    {
+        Stack<Scope> tmp = (Stack<Scope>) this._scopeStack.clone();
+        while(!tmp.empty())
+        {
+            System.out.printf("Scope: %s\n", tmp.pop().getId());
         }
     }
 }

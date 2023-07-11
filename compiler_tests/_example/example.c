@@ -1,6 +1,10 @@
 int f()
 {
-    int y=10;
-    int x=20 + y;
+    int x;
+    x=5678;
+    {
+        int x;
+        x=1234;
+    }
     return x;
 }

@@ -11,6 +11,12 @@ public class Scope extends CommonSymbol
     public Scope()
     {}
 
+
+    public Scope(String id)
+    {
+        this._id = id;
+    } 
+
     public Scope(String id, String type, boolean isGlobal)
     {
         super(id, type, isGlobal);
