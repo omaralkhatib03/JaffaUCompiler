@@ -8,7 +8,7 @@ bin/Compiler.class: src/Compiler.java src/context/*.java src/symbols/*.java src/
 	javac $(JAVAC_ARGS) -d $(OUTPUT_DIR) --class-path $(COMPILER_PATH) src/Compiler.java
 
 # src/grammar/c*.class: src/grammar/c*.java #unnecessary rule
-#	 javac $(JAVAC_ARGS) --class-path $(ANTLR_LIB) src/grammar/*.java
+# 	 javac $(JAVAC_ARGS) --class-path $(ANTLR_LIB) src/grammar/*.java
 
 src/grammar/c*.java: src/grammar/c.g4  
 	java $(JAVA_ARGS) -classpath $(ANTLR_LIB) org.antlr.v4.Tool -visitor src/grammar/c.g4 
