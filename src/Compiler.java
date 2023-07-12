@@ -1126,21 +1126,22 @@ public class Compiler extends cBaseVisitor<String>
         switch (type) {
             case "float":
             {
-
+                // TODO: implement float for loop
             }
             break;
             case "double":
             {
-
+                // TODO: implement double for loop
             }
             break;
             case "unsigned":
             {
-
+                // TODO: implement unsigned for loop
             }
             break;
             case "char":
             {
+                // TODO: implement char for loop
             }
             break;
             default: // default int
@@ -1189,21 +1190,22 @@ public class Compiler extends cBaseVisitor<String>
         switch (type) {
             case "float":
             {
-
+                // TODO: implement float while loop
             }
             break;
             case "double":
             {
-
+                // TODO: implement double while loop
             }
             break;
             case "unsigned":
             {
-
+                // TODO: implement unsigned while loop
             }
             break;
             case "char":
             {
+                // TODO: implement char while loop
             }
             break;
             default: // default int
@@ -1215,7 +1217,7 @@ public class Compiler extends cBaseVisitor<String>
         }
     }
 
-    private void writeWhile(cParser.IterationStatementContext ctx)
+    private void writeWhileCheck(cParser.IterationStatementContext ctx)
     {
         String beginLabel = this.ctx.makeUnqiueLabel("WHILE");
         String endLabel = this.ctx.makeUnqiueLabel("ENDWHILE");
@@ -1247,7 +1249,7 @@ public class Compiler extends cBaseVisitor<String>
         
         if (ctx.While() != null)
         {
-            writeWhile(ctx);
+            writeWhileCheck(ctx);
         }
         else if (ctx.Do() != null)
         {
