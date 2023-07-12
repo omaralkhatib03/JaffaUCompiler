@@ -340,8 +340,8 @@ expressionStatement
     ;
 
 selectionStatement
-    :   'if' '(' expression ')' statement
-    |   'if' '(' expression ')' statement 'else' statement
+    :   ifNoElse='if' '(' expression ')' statement
+    |   'if' '(' expression ')' statement ifWithElse='else' statement
     |   'switch' '(' expression ')' statement
     ;
 
