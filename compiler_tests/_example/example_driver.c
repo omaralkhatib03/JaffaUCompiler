@@ -3,5 +3,5 @@ int f();
 
 int main()
 {
-    return !(5867 == f());
+    return !(19940 == f());
 }

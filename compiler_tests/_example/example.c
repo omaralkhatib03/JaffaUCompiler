@@ -1,10 +1,9 @@
 int f()
 {
     int x;
-    x=5678;
-    {
-        int x;
-        x=1234;
+    x=1;
+    while(x){
+        x=0;
     }
-    return x;
+    return 19937;
 }

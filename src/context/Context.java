@@ -506,6 +506,10 @@ public class Context
         this._scopeStack.pop();
     }
 
+    public boolean isRegStackEmpty()
+    {
+        return this.registerStack.empty();
+    }
     //////////////////////////////////////////////////
     ////////////////     Printers     ////////////////
     //////////////////////////////////////////////////

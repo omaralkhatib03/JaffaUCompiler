@@ -1,6 +1,6 @@
 ANTLR_LIB=".:./lib/antlr-4.13.0-complete.jar"
 COMPILER_PATH=".:./lib/antlr-4.13.0-complete.jar:./src"
-JAVA_ARGS=-XX:+ShowCodeDetailsInExceptionMessages
+JAVA_ARGS=-XX:+ShowCodeDetailsInExceptionMessages 
 JAVAC_ARGS=-Xdiags:verbose
 OUTPUT_DIR=./bin
 

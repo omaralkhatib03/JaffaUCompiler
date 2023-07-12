@@ -6,14 +6,19 @@ addi sp, sp, -32
 sw ra, 28(sp)
 sw s0, 24(sp)
 addi s0, sp, 32
-li t0, 5678
+li t0, 1
 addi t1, s0, -20
 sw t0, 0(t1)
-li t0, 1234
-addi t1, s0, -24
-sw t0, 0(t1)
+_WHILE_2:
 addi t0, s0, -20
 lw t0, 0(t0)
+beq t0, zero, _ENDWHILE_3
+li t0, 0
+addi t1, s0, -20
+sw t0, 0(t1)
+j _WHILE_2
+_ENDWHILE_3:
+li t0, 19937
 mv a0, t0
 j _RETURN_0
 _RETURN_0:

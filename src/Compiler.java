@@ -349,6 +349,7 @@ public class Compiler extends cBaseVisitor<String>
     {
         visitChildren(ctx);
         if (verbose) System.out.printf("###################### Compilation Unit ################### \n");
+        assert(this.ctx.isRegStackEmpty() == true);
 
         try 
         {
@@ -612,16 +613,11 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
-        String lhsType = visit(ctx.lhs);
+        String[] lhsType = visit(ctx.lhs).split("\\s+");
         String lReg = this.ctx.getTopReg();
-
-        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
-        String rhsType = visit(ctx.rhs); // returns rtype
-
-        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
-
+        unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), lReg, lReg);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
         String op = ctx.op.getText();
         
         switch (op) 
@@ -646,7 +642,7 @@ public class Compiler extends cBaseVisitor<String>
         this.ctx.clearTopOfStack(); //clears r reg
         // this.ctx.clearTopOfStack(); //clears l reg, dont need to clear it because it will be overwritten by the result of the operation
 
-        return "Multiplicative" + lhsType; // to inform parent that a multiplicative expression was evaluated, hence the value in lreg would not be treated as a pointer
+        return "Multiplicative " + lhsType; // to inform parent that a multiplicative expression was evaluated, hence the value in lreg would not be treated as a pointer
     }
 
     private void writeAddition(String rega, String regb)
@@ -664,17 +660,11 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
-        String lhsType = visit(ctx.lhs);
+        String[] lhsType = visit(ctx.lhs).split("\\s+");
         String lReg = this.ctx.getTopReg();
-
-        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
-        String rhsType = visit(ctx.rhs); // returns rtype
-
-
-        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
-
+        unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), lReg, lReg);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
         String op = ctx.op.getText();
         switch (op) 
         {
@@ -692,7 +682,7 @@ public class Compiler extends cBaseVisitor<String>
 
         this.ctx.clearTopOfStack(); //clears r reg
 
-        return "Additive" + lhsType; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
+        return "Additive " + lhsType; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
     }
 
     private void writeShiftLeft(String rega, String regb)
@@ -710,19 +700,13 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
-        
-        String lhsType = visit(ctx.lhs);
+        String[] lhsType = visit(ctx.lhs).split("\\s+");
         String lReg = this.ctx.getTopReg();
-
-        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
-
-        String rhsType = visit(ctx.rhs); // returns rtype
-
-        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
-
+        unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), lReg, lReg);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
         String op = ctx.op.getText();
+
         switch (op) 
         {
             case "<<":
@@ -739,7 +723,7 @@ public class Compiler extends cBaseVisitor<String>
 
         this.ctx.clearTopOfStack(); //clears r reg
 
-        return "Shift" + lhsType; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
+        return "Shift " + lhsType; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
 
     }
 
@@ -773,18 +757,11 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
-        
-        String lhsType = visit(ctx.lhs);
+        String[] lhsType = visit(ctx.lhs).split("\\s+");
         String lReg = this.ctx.getTopReg();
-
-        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
-
-        String rhsType = visit(ctx.rhs); // returns rtype
-
-        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
-
+        unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), lReg, lReg);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
         String op = ctx.op.getText();
 
         switch (op) 
@@ -813,7 +790,7 @@ public class Compiler extends cBaseVisitor<String>
 
         this.ctx.clearTopOfStack();
 
-        return "Relational" + lhsType ; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
+        return "Relational " + lhsType ; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
     }
 
     private void writeEq(String rega, String regb)
@@ -827,18 +804,11 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
-        
-        String lhsType = visit(ctx.lhs);
+        String[] lhsType = visit(ctx.lhs).split("\\s+");
         String lReg = this.ctx.getTopReg();
-
-        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
-
-        String rhsType = visit(ctx.rhs); // returns rtype
-
-        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
-
+        unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), lReg, lReg);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
         String op = ctx.op.getText();
 
         switch (op) 
@@ -857,7 +827,7 @@ public class Compiler extends cBaseVisitor<String>
 
         this.ctx.clearTopOfStack();
 
-        return "Equality" + lhsType;
+        return "Equality " + lhsType;
     }
 
     @Override
@@ -865,24 +835,17 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
-        
-        String lhsType = visit(ctx.lhs);
+        String[] lhsType = visit(ctx.lhs).split("\\s+");
         String lReg = this.ctx.getTopReg();
-
-        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
-
-        String rhsType = visit(ctx.rhs); // returns rtype
-
-        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
-
+        unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), lReg, lReg);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
 
         this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("and", lReg, lReg, this.ctx.getTopReg()) + "\n");
         
         this.ctx.clearTopOfStack();
 
-        return "Anded" + lhsType;
+        return "Anded " + lhsType;
     }
 
     @Override
@@ -890,23 +853,17 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
-        
-        String lhsType = visit(ctx.lhs);
+        String[] lhsType = visit(ctx.lhs).split("\\s+");
         String lReg = this.ctx.getTopReg();
-
-        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
-
-        String rhsType = visit(ctx.rhs); // returns rtype
-
-        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+        unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), lReg, lReg);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
 
         this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("xor", lReg, lReg, this.ctx.getTopReg()) + "\n");
 
         this.ctx.clearTopOfStack();
 
-        return "Xored" + lhsType;
+        return "Xored " + lhsType;
     }
 
     @Override
@@ -914,23 +871,16 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
-        
-        String lhsType = visit(ctx.lhs);
+        String[] lhsType = visit(ctx.lhs).split("\\s+");
         String lReg = this.ctx.getTopReg();
-
-        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
-
-        String rhsType = visit(ctx.rhs); // returns rtype
-
-        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+        unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), lReg, lReg);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
 
         this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("or", lReg, lReg, this.ctx.getTopReg()) + "\n");
-
         this.ctx.clearTopOfStack();
 
-        return "Ored" + lhsType;
+        return "Ored " + lhsType;
     }
 
     private void writeLogicalAnd(String rega, String regb)
@@ -952,23 +902,17 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
-        
-        String lhsType = visit(ctx.lhs);
+        String[] lhsType = visit(ctx.lhs).split("\\s+");
         String lReg = this.ctx.getTopReg();
-
-        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
-
-        String rhsType = visit(ctx.rhs); // returns rtype
-
-        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
-
+        unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), lReg, lReg);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
+        
         writeLogicalAnd(lReg, this.ctx.getTopReg());
 
         this.ctx.clearTopOfStack();
 
-        return "LogicalAnded" + lhsType;
+        return "LogicalAnded " + lhsType;
     }
 
     private void writeLogicalOr(String rega, String regb)
@@ -990,22 +934,16 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
-        
-        String lhsType = visit(ctx.lhs);
+        String[] lhsType = visit(ctx.lhs).split("\\s+");
         String lReg = this.ctx.getTopReg();
-
-        if (typeSizeMap.containsKey(lhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", lReg, 0, lReg) + "\n"); 
-
-        String rhsType = visit(ctx.rhs); // returns rtype
-
-        if (typeSizeMap.containsKey(rhsType)) // if its a var, i need to unload it here to use it
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", this.ctx.getTopReg(), 0, this.ctx.getTopReg()) + "\n"); 
+        unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), lReg, lReg);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
 
         writeLogicalOr(lReg, this.ctx.getTopReg());
         this.ctx.clearTopOfStack();
 
-        return "LogicalOred" + lhsType;
+        return "LogicalOred " + lhsType;
     }
 
 
@@ -1057,11 +995,10 @@ public class Compiler extends cBaseVisitor<String>
             System.out.printf("#########################################    Assignment Expression    #########################################\n");
             System.out.printf("Assignment Expression: %s\n", ctx.getText());
         }
-        String rhsType = visit(ctx.rightHandSide); // all expressions will return the type of variable they evaluated, i.e whats the type of the variable at the top of the stack
+        String rhsType[] = visit(ctx.rightHandSide).split("\\s+"); // all expressions will return the type of variable they evaluated, i.e whats the type of the variable at the top of the stack
         String rhsReg = this.ctx.getTopReg();
-        
-        if (typeSizeMap.containsKey(rhsType)) // constants return type "constant type", if we have a constant we done need to unpack the value
-            this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("lw", rhsReg, 0, rhsReg) + "\n"); // if what u picked up was a pointer, u need to use it here, thus unload it from location
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), rhsReg, rhsReg);       
+       
         // now top reg holds a value
         String lhsType = visit(ctx.leftHandSide); // get the pointer to the left hand side, a new register is put onto the stack
         String op = ctx.assOp.getText(); // get the operator
@@ -1136,6 +1073,23 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////       EXPRESSIONS END       ////////////////////////
     ///////////////////////////////////////////////////////////////////////
     
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        GeneralStatements        ////////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+    @Override
+    public String visitStatement(cParser.StatementContext ctx)
+    {
+        String stmntReturn = visitChildren(ctx);
+        if (!this.ctx.isRegStackEmpty())
+            this.ctx.clearStack(verbose);
+        return stmntReturn;
+    }
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        GeneralStatements END    ////////////////////
+    ///////////////////////////////////////////////////////////////////////
         
     ///////////////////////////////////////////////////////////////////////
     //////////////////        CompoundStatement        ////////////////////
@@ -1163,6 +1117,160 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////        CompoundStatement END    ////////////////////
     ///////////////////////////////////////////////////////////////////////
 
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        IterationStatement        ///////////////////
+    ///////////////////////////////////////////////////////////////////////
+    private void writeForCheck(String funcId, String type, String label)
+    {
+        switch (type) {
+            case "float":
+            {
+
+            }
+            break;
+            case "double":
+            {
+
+            }
+            break;
+            case "unsigned":
+            {
+
+            }
+            break;
+            case "char":
+            {
+            }
+            break;
+            default: // default int
+            {
+                // writeBranchInstruction("bne", this.ctx.getTopReg(), "zero", label);
+                this.ctx.writeBodyString(funcId, writeBranchInstruction("bne", this.ctx.getTopReg(), "zero", label) + "\n");
+            }
+            break;
+        }
+    }
+
+    @Override
+    public String visitExpressionStatement(cParser.ExpressionStatementContext ctx)
+    {
+        if (ctx.expression() != null)
+           return visit(ctx.expression());
+        return "";
+    }
+
+    private String writeFor2Loop(cParser.IterationStatementContext ctx)
+    {
+        visit(ctx.forinit);
+        String funcId = this.ctx.getCurrentFunction().getId();
+        String endForLabel = this.ctx.makeUnqiueLabel("ENDFOR");
+        String beginForLabel = this.ctx.makeUnqiueLabel("FOR");
+        this.ctx.writeBodyString(funcId, "j " + endForLabel + "\n");
+        this.ctx.writeBodyString(funcId, beginForLabel + ":\n");
+        visit(ctx.statement()); // compiler whats inside
+        visit(ctx.forexpr);
+        this.ctx.clearStack(verbose); // for saftey lets clear the stack  after the expression, incase some idiot uses a stray expression here instead of a useful one
+        this.ctx.writeBodyString(funcId, endForLabel + ":\n");
+        String[] condType = visit(ctx.forcond).split("\\s+"); // compiles into a register       
+        assert(condType.length == 2 || condType.length == 1);
+        if (verbose)
+        {
+            System.out.printf("#########################################    For2 Loop    #########################################\n");
+            System.out.printf("Condition Type: %s\n", (condType.length == 2) ? condType[1] : condType[0]);
+            System.out.printf("#########################################    For2 Loop END #####################################\n");
+        }
+        writeForCheck(funcId, (condType.length == 2) ? condType[1] : condType[0], beginForLabel);
+        return "";
+    }
+
+    private void writeWhileCheck(String funcId, String type, String label)
+    {
+        switch (type) {
+            case "float":
+            {
+
+            }
+            break;
+            case "double":
+            {
+
+            }
+            break;
+            case "unsigned":
+            {
+
+            }
+            break;
+            case "char":
+            {
+            }
+            break;
+            default: // default int
+            {
+                // writeBranchInstruction("bne", this.ctx.getTopReg(), "zero", label);
+                this.ctx.writeBodyString(funcId, writeBranchInstruction("beq", this.ctx.getTopReg(), "zero", label) + "\n");
+            }
+            break;
+        }
+    }
+
+    private void writeWhile(cParser.IterationStatementContext ctx)
+    {
+        String beginLabel = this.ctx.makeUnqiueLabel("WHILE");
+        String endLabel = this.ctx.makeUnqiueLabel("ENDWHILE");
+        String funcId = this.ctx.getCurrentFunction().getId();
+        this.ctx.writeBodyString(funcId, beginLabel + ":\n");
+        String[] condType = visit(ctx.expression()).split("\\s+"); // compiles into a register
+        assert(condType.length == 2 || condType.length == 1);
+        unloadCheckpoint(condType, funcId, this.ctx.getTopReg(), this.ctx.getTopReg());
+        if (verbose)
+        {
+            System.out.printf("#########################################    While Loop    #########################################\n");
+            System.out.printf("Condition Type: %s\n", (condType.length == 2) ? condType[1] : condType[0], endLabel);
+            System.out.printf("#########################################    While Loop END #####################################\n");
+        }
+        writeWhileCheck(funcId, (condType.length == 2) ? condType[1] : condType[0], endLabel);
+        this.ctx.clearStack(verbose);
+        visit(ctx.statement()); // compile whats inside
+        this.ctx.writeBodyString(funcId, "j " + beginLabel + "\n");
+        this.ctx.writeBodyString(funcId, endLabel + ":\n");
+    }
+
+    @Override
+    public String visitIterationStatement(cParser.IterationStatementContext ctx)
+    {
+        if (verbose)
+        {
+            System.out.printf("#########################################    Iteration Statement    #########################################\n");
+        }
+        
+        if (ctx.While() != null)
+        {
+            writeWhile(ctx);
+        }
+        else if (ctx.Do() != null)
+        {
+        
+        }
+        else if (ctx.for1_token != null)
+        {
+        
+        }
+        else if (ctx.for2_token != null)
+        {
+            writeFor2Loop(ctx);    
+        }
+
+        return "";
+    }
+
+
+
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        IterationStatement END    ///////////////////
+    ///////////////////////////////////////////////////////////////////////
     public static void main(String[] args) throws IOException, NoSuchFileException 
     {
         boolean verbose = false;
@@ -1355,6 +1463,17 @@ public class Compiler extends cBaseVisitor<String>
     private String writeSeqzInstruction(String instruction, String rega, String regb)
     {
         return String.format("%s %s, %s", instruction, rega, rega);
+    }
+
+    private String unloadCheckpoint(String [] arr, String funcId, String regA, String regB)
+    {
+        if (arr.length == 1)
+        {
+            this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", regA, 0, regB) + "\n");
+            return arr[0];
+        }
+        else
+            return String.format("%s\n%s", arr[0], arr[1]);
     }
 
     private String getType(cParser.DeclarationSpecifiersContext ctx)

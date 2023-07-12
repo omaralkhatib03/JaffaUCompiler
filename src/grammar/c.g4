@@ -355,8 +355,8 @@ selectionStatement
 iterationStatement
 	: While '(' expression ')' statement
 	| Do statement While '(' expression ')' ';'
-	| For '(' expressionStatement expressionStatement ')' statement
-	| For '(' expressionStatement expressionStatement expression ')' statement
+	| for1_token=For '(' expressionStatement expressionStatement ')' statement
+	| for2_token=For '(' forinit=expressionStatement forcond=expressionStatement forexpr=expression ')' statement
 	;
 
 // forCondition

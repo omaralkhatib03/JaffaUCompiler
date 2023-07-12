@@ -1,6 +1,6 @@
 #!/bin/bash
 DEBUG=$1
-JAVA_ARGS=-XX:+ShowCodeDetailsInExceptionMessages
+JAVA_ARGS='-ea -XX:+ShowCodeDetailsInExceptionMessages'
 COMPILER_DIRS=./bin/:./src:./lib/antlr-4.13.0-complete.jar
 
 make
