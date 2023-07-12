@@ -1187,7 +1187,6 @@ public class Compiler extends cBaseVisitor<String>
                     verbose = true;
                 else
                     throw new Exception("Unkown option " + args[4]);
-                
         } 
         catch (Exception e) 
         {
