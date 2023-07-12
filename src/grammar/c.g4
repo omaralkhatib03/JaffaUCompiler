@@ -4,8 +4,8 @@ grammar c;
 primaryExpression
     :   Identifier
     |   Constant
-    |   StringLiteral+
-    |   '(' expression ')'
+    |   str=StringLiteral+
+    |   '(' expr=expression ')'
     ;
 
 
@@ -340,8 +340,8 @@ expressionStatement
     ;
 
 selectionStatement
-    :   ifNoElse='if' '(' expression ')' statement
-    |   'if' '(' expression ')' statement ifWithElse='else' statement
+    :   ifNoElse='if' '(' expression ')' ifStatement=statement
+    |   'if' '(' expression ')' ifStatement=statement ifWithElse='else' elseStatement=statement
     |   'switch' '(' expression ')' statement
     ;
 

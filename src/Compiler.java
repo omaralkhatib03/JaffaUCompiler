@@ -21,12 +21,10 @@ public class Compiler extends cBaseVisitor<String>
 {
     public static final Map<String, Integer> typeSizeMap = Map.of(
         "char", 1,
-        "short", 2,
         "int", 4,
-        "long", 8,
+        "unsigned", 4,
         "float", 4,
-        "double", 8,
-        "long double", 16
+        "double", 8
     );
 
     protected static FileWriter writer;
@@ -138,7 +136,7 @@ public class Compiler extends cBaseVisitor<String>
         this.ctx.getCurrentFunction().decrementSymbolOffset(typeSizeMap.get(type)); // decrement offset by size of variable
         this.ctx.allocateMemory(typeSizeMap.get(type), this.ctx.getCurrentFunction().getId());
         if (verbose) System.out.printf("Creating Variable: %s, type: %s offset: %d \n", var.getId(), var.getType(), var.getOffset());
-
+            
         if (addToQueue)
             this.ctx.addInitializer(var); // add variable to initializer queue
         return var;
@@ -445,7 +443,7 @@ public class Compiler extends cBaseVisitor<String>
                     break;
                     case "unsigned":
                     {
-                        // TODO: implement unsigned return
+                        intReturn(this.ctx.getTopReg(), ctx, exprType); // all the relevant expressions will use the correct unsigned instructions, the return move remains the same   
                     }
                     break;
                     default: // int 
@@ -569,13 +567,13 @@ public class Compiler extends cBaseVisitor<String>
             
             return primaryExpressionConstant(ctx.Constant());
         }
-        else if (ctx.StringLiteral() != null)
+        else if (ctx.str != null)
         {
             // TODO: implement primary expression string literal
         }
-        else if (ctx.expression() != null)
+        else /*(ctx.expr != null)*/
         {
-            // TODO: implement primary expression expression
+            return visit(ctx.expression());
         }
 
         return "";
@@ -666,6 +664,7 @@ public class Compiler extends cBaseVisitor<String>
         String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
         unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
         String op = ctx.op.getText();
+
         switch (op) 
         {
             case "+":
@@ -722,6 +721,7 @@ public class Compiler extends cBaseVisitor<String>
         }
 
         this.ctx.clearTopOfStack(); //clears r reg
+
 
         return "Shift " + lhsType; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
 
@@ -1175,14 +1175,13 @@ public class Compiler extends cBaseVisitor<String>
         this.ctx.clearStack(verbose); // for saftey lets clear the stack  after the expression, incase some idiot uses a stray expression here instead of a useful one
         this.ctx.writeBodyString(funcId, endForLabel + ":\n");
         String[] condType = visit(ctx.forcond).split("\\s+"); // compiles into a register       
-        assert(condType.length == 2 || condType.length == 1);
         if (verbose)
         {
             System.out.printf("#########################################    For2 Loop    #########################################\n");
-            System.out.printf("Condition Type: %s\n", (condType.length == 2) ? condType[1] : condType[0]);
+            System.out.printf("Condition Type: %s\n", (condType.length >= 2) ? condType[0] : condType[condType.length-1]);
             System.out.printf("#########################################    For2 Loop END #####################################\n");
         }
-        writeForCheck(funcId, (condType.length == 2) ? condType[1] : condType[0], beginForLabel);
+        writeForCheck(funcId, (condType.length >= 2) ? condType[0] : condType[condType.length-1], beginForLabel);
         return "";
     }
 
@@ -1225,15 +1224,14 @@ public class Compiler extends cBaseVisitor<String>
         String funcId = this.ctx.getCurrentFunction().getId();
         this.ctx.writeBodyString(funcId, beginLabel + ":\n");
         String[] condType = visit(ctx.expression()).split("\\s+"); // compiles into a register
-        assert(condType.length == 2 || condType.length == 1);
         unloadCheckpoint(condType, funcId, this.ctx.getTopReg(), this.ctx.getTopReg());
         if (verbose)
         {
             System.out.printf("#########################################    While Loop    #########################################\n");
-            System.out.printf("Condition Type: %s\n", (condType.length == 2) ? condType[1] : condType[0], endLabel);
+            System.out.printf("Condition Type: %s\n", (condType.length >= 2) ? condType[0] : condType[condType.length-1]);
             System.out.printf("#########################################    While Loop END #####################################\n");
         }
-        writeWhileCheck(funcId, (condType.length == 2) ? condType[1] : condType[0], endLabel);
+        writeWhileCheck(funcId, (condType.length >= 2) ? condType[0] : condType[condType.length-1], endLabel);
         this.ctx.clearStack(verbose);
         visit(ctx.statement()); // compile whats inside
         this.ctx.writeBodyString(funcId, "j " + beginLabel + "\n");
@@ -1276,11 +1274,113 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////        SelectionStatement    ///////////////////////
     ///////////////////////////////////////////////////////////////////////
 
+    private void writeIfNoElse(cParser.SelectionStatementContext ctx)
+    {
+        String funcId = this.ctx.getCurrentFunction().getId();
+        String[] condType = visit(ctx.expression()).split("\\s+"); 
+        if (verbose)
+        {
+            System.out.printf("#########################################    If No Else    #########################################\n");
+            System.out.printf("Condition Type: %s\n", (condType.length >= 2) ? condType[0] : condType[condType.length-1]);
+            System.out.printf("#########################################    If No Else END #####################################\n");
+        }
+        unloadCheckpoint(condType, funcId, this.ctx.getTopReg(), this.ctx.getTopReg());
+        String endIfLabel = this.ctx.makeUnqiueLabel("ENDIF");
+        switch ((condType.length >= 2) ? condType[0] : condType[condType.length-1]) {
+            case "float":
+            {
+
+            }
+            break;
+            case "double":
+            {
+
+            }
+            break;
+            case "unsigned":
+            {
+
+            }
+            break;
+            case "char":
+            {
+
+            }
+            default: // default int
+            {
+                this.ctx.writeBodyString(funcId, writeBranchInstruction("beq", this.ctx.getTopReg(), "zero", endIfLabel) + "\n");
+            }
+            break;
+        }
+        visit(ctx.ifStatement);
+        this.ctx.writeBodyString(funcId, endIfLabel + ":\n");
+    }
+
+    private void writeIfWithElse(cParser.SelectionStatementContext ctx)
+    {
+        String funcId = this.ctx.getCurrentFunction().getId();
+        String[] condType = visit(ctx.expression()).split("\\s+"); 
+        if (verbose)
+        {
+            System.out.printf("#########################################    If No Else    #########################################\n");
+            System.out.printf("Condition Type: %s\n",(condType.length >= 2) ? condType[0] : condType[condType.length-1]);
+            System.out.printf("#########################################    If No Else END #####################################\n");
+        }
+        unloadCheckpoint(condType, funcId, this.ctx.getTopReg(), this.ctx.getTopReg());
+        String endIfLabel = this.ctx.makeUnqiueLabel("ENDIF");
+        String elseLabel = this.ctx.makeUnqiueLabel("ELSE");
+        switch ((condType.length >= 2) ? condType[0] : condType[condType.length-1]) {
+            case "float":
+            {
+
+            }
+            break;
+            case "double":
+            {
+
+            }
+            break;
+            case "unsigned":
+            {
+
+            }
+            break;
+            case "char":
+            {
+
+            }
+            default: // default int
+            {
+                this.ctx.writeBodyString(funcId, writeBranchInstruction("beq", this.ctx.getTopReg(), "zero", elseLabel) + "\n");
+            }
+            break;
+        }
+        visit(ctx.ifStatement);
+        this.ctx.writeBodyString(funcId, "j " + endIfLabel + "\n");
+        this.ctx.writeBodyString(funcId, elseLabel + ":\n");
+        visit(ctx.elseStatement);
+        this.ctx.writeBodyString(funcId, endIfLabel + ":\n");
+    }
 
     @Override
     public String visitSelectionStatement(cParser.SelectionStatementContext ctx)
     {
-        return "";
+        if (ctx.ifNoElse != null)
+        {
+            writeIfNoElse(ctx);
+            return "";
+        }
+        else if (ctx.ifWithElse != null)
+        {
+            writeIfWithElse(ctx);
+            return "";
+        }
+        else if (ctx.Switch() != null)
+        {
+            // TODO: implement switch statement
+        }
+        
+        throw new RuntimeException("Unkown selection statement");
     }
 
     ///////////////////////////////////////////////////////////////////////
