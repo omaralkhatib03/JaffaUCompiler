@@ -444,8 +444,6 @@ public class Context
 
     public boolean symbolExistsInScope(String id)
     {
-        System.out.printf("Checking if symbol exists in scope: %b\n", this._FunctionSymbolTable.containsKey(id));
-        this.printFunctionSymbolTable();
         
         // System.out.printf("%s\n", this._GlobalSymbolTable.get(id).getId());
         for (Scope i : this._scopeStack)
@@ -585,9 +583,9 @@ public class Context
         System.out.printf("Register Stack Size: %s\n", this.registerStack.size());
         Stack<String> tmp = (Stack<String>) this.registerStack.clone();
 
-        while (!registerStack.empty())
+        while (!tmp.empty())
         {
-            System.out.printf("%s \n", this.registerStack.pop());
+            System.out.printf("%s \n", tmp.pop());
         }
     }
 

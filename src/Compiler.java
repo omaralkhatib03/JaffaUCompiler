@@ -322,7 +322,6 @@ public class Compiler extends cBaseVisitor<String>
     public String visitFunctionDefinition(cParser.FunctionDefinitionContext ctx) 
     { 
 
-        System.out.printf("Got here\n");
         String functionType = getType(ctx.declarationSpecifiers());
         
         this.ctx.setDeclarationMode(functionType);
@@ -565,7 +564,6 @@ public class Compiler extends cBaseVisitor<String>
     public String primaryExpressionId(TerminalNode idNode)
     {
         String id = idNode.getText();
-        String type = "";
         
         if (!this.ctx.symbolExistsInScope(id))
             throw new RuntimeException(String.format("Error: Symbol %s does not exist in scope", id));
@@ -1458,8 +1456,6 @@ public class Compiler extends cBaseVisitor<String>
         }
         else // function calls by def
         {
-            System.out.printf("Function Call %s\n", ctx.argumentExpressionList());
-
             if (ctx.argumentExpressionList().toArray().length == 0)
             {
                 String funcId = this.ctx.getCurrentFunction().getId();
@@ -1471,18 +1467,22 @@ public class Compiler extends cBaseVisitor<String>
                 {
                     case "float":
                     {
+                        // TODO: implement float function call No args
                     }
                     break;
                     case "double":
                     {
+                        // TODO: implement double function call No args
                     }
                     break;
                     case "unsigned":
                     {
+                        // TODO: implement unsigned function call No args
                     }
                     break;
                     case "char":
                     {
+                        // TODO: implement char function call No args
                     }
                     break;
                     default: // default int
@@ -1492,7 +1492,6 @@ public class Compiler extends cBaseVisitor<String>
                     }
                     break;
                 }
-                System.out.printf("callType: %s\n", type);
                 return "FunctionCall " + type;
             }
           //  TODO: implement function call, with parameters            
