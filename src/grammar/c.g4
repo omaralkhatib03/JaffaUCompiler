@@ -353,10 +353,10 @@ selectionStatement
 
 // also mine from ansi c
 iterationStatement
-	: While '(' expression ')' statement
+	: While '(' whileCond=expression ')' statement
 	| Do statement While '(' expression ')' ';'
 	| for1_token=For '(' expressionStatement expressionStatement ')' statement
-	| for2_token=For '(' forinit=expressionStatement forcond=expressionStatement forexpr=expression ')' statement
+	| for2_token=For '(' forInit=expressionStatement forCond=expressionStatement forExpr=expression ')' statement
 	;
 
 // forCondition

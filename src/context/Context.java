@@ -268,6 +268,8 @@ public class Context
     private Stack <Scope> _scopeStack = new Stack<Scope>(); // stack of scopes
     private int _makeUnq = 0;
     private Map <String, String> _returnLabels = new HashMap<String, String>(); // symbol table
+    private Stack<String> _breakStack = new Stack<String>();
+    private Stack<String> _continueStack = new Stack<String>();
 
     public void allocateMemory(int allocateMemory, String fid) // allocates memory to the stack for the current FunctionContext
     {
@@ -534,6 +536,38 @@ public class Context
     {
         this.regManager.printRegMaps();
     }
+
+    public void pushToBreakStack(String label)
+    {
+        this._breakStack.push(label);
+    }
+
+    public String getTopOfBreakStack()
+    {
+        return this._breakStack.peek();
+    }
+
+    public String popFromBreakStack()
+    {
+        return this._breakStack.pop();
+    }
+
+    public void pushToContinueStack(String label)
+    {
+        this._continueStack.push(label);
+    }
+
+    public String getTopOfContinueStack()
+    {
+        return this._continueStack.peek();
+    }
+
+    public String popFromContinueStack()
+    {
+        return this._continueStack.pop();
+    }
+
+
 
     @SuppressWarnings("unchecked")
     public void printRegisterStackStatus() // ONLY USE THIS AT THE END OF THE PROGRAM

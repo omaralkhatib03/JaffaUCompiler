@@ -13,6 +13,8 @@ import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Map;
 
+import javax.management.RuntimeErrorException;
+
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -456,21 +458,20 @@ public class Compiler extends cBaseVisitor<String>
                 this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), "j " + this.ctx.getReturnLabel(this.ctx.getCurrentFunction().getId()) + "\n");
                 this.ctx.clearReg("a0");
                 this.ctx.clearTopOfStack(); 
-                // this.ctx.clearTopOfStack();
             }
             break;
             case "break":
             {
-                // TODO: implement break
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), "j " + this.ctx.getTopOfBreakStack() + "\n");
             }
             break;
             case "continue":
             {
-                // TODO: implement continue
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), "j " + this.ctx.getTopOfContinueStack() + "\n");// Not Implemented
             }
             break;
-            default: // TODO: goto jump instruction
-            break;
+            default: // Not Implemented
+                throw new RuntimeErrorException(null, "Go to not implemented \n");
         }
         if (verbose) System.out.printf("###################### Jump Statement END ################### \n");
 
@@ -1135,7 +1136,7 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////        IterationStatement        ///////////////////
     ///////////////////////////////////////////////////////////////////////
 
-    private void writeForCheck(String funcId, String type, String label)
+    private void writeCheck(String funcId, String type, String label)
     {
         switch (type) {
             case "float":
@@ -1160,7 +1161,7 @@ public class Compiler extends cBaseVisitor<String>
             break;
             default: // default int
             {
-                this.ctx.writeBodyString(funcId, writeBranchInstruction("bne", this.ctx.getTopReg(), "zero", label) + "\n");
+                this.ctx.writeBodyString(funcId, writeBranchInstruction("beq", this.ctx.getTopReg(), "zero", label) + "\n");
             }
             break;
         }
@@ -1173,79 +1174,25 @@ public class Compiler extends cBaseVisitor<String>
            return visit(ctx.expression());
         return "";
     }
-
-    private String writeFor2Loop(cParser.IterationStatementContext ctx)
+    
+    private void writeIteration(cParser.IterationStatementContext ctx, String beginLabel, String endLabel, boolean isFor)
     {
-        visit(ctx.forinit);
         String funcId = this.ctx.getCurrentFunction().getId();
-        String endForLabel = this.ctx.makeUnqiueLabel("ENDFOR");
-        String beginForLabel = this.ctx.makeUnqiueLabel("FOR");
-        this.ctx.writeBodyString(funcId, "j " + endForLabel + "\n");
-        this.ctx.writeBodyString(funcId, beginForLabel + ":\n");
-        visit(ctx.statement()); // compiler whats inside
-        visit(ctx.forexpr);
-        this.ctx.clearStack(verbose); // for saftey lets clear the stack  after the expression, incase some idiot uses a stray expression here instead of a useful one
-        this.ctx.writeBodyString(funcId, endForLabel + ":\n");
-        String[] condType = visit(ctx.forcond).split("\\s+"); // compiles into a register       
+        if (isFor) visit(ctx.forInit);
+        this.ctx.writeBodyString(funcId, beginLabel + ":\n");
+        String[] condType = visit((isFor) ? ctx.forCond : ctx.whileCond).split("\\s+"); // compiles into a register       
+        unloadCheckpoint(condType, funcId, this.ctx.getTopReg(), this.ctx.getTopReg());
+
         if (verbose)
         {
             System.out.printf("#########################################    For2 Loop    #########################################\n");
             System.out.printf("Condition Type: %s\n", (condType.length >= 2) ? condType[0] : condType[condType.length-1]);
             System.out.printf("#########################################    For2 Loop END #####################################\n");
         }
-        writeForCheck(funcId, (condType.length >= 2) ? condType[0] : condType[condType.length-1], beginForLabel);
-        return "";
-    }
-
-    private void writeWhileCheck(String funcId, String type, String label)
-    {
-        switch (type) {
-            case "float":
-            {
-                // TODO: implement float while loop
-            }
-            break;
-            case "double":
-            {
-                // TODO: implement double while loop
-            }
-            break;
-            case "unsigned":
-            {
-                // TODO: implement unsigned while loop
-            }
-            break;
-            case "char":
-            {
-                // TODO: implement char while loop
-            }
-            break;
-            default: // default int
-            {
-                // writeBranchInstruction("bne", this.ctx.getTopReg(), "zero", label);
-                this.ctx.writeBodyString(funcId, writeBranchInstruction("beq", this.ctx.getTopReg(), "zero", label) + "\n");
-            }
-            break;
-        }
-    }
-
-    private void writeWhileCheck(cParser.IterationStatementContext ctx)
-    {
-        String beginLabel = this.ctx.makeUnqiueLabel("WHILE");
-        String endLabel = this.ctx.makeUnqiueLabel("ENDWHILE");
-        String funcId = this.ctx.getCurrentFunction().getId();
-        this.ctx.writeBodyString(funcId, beginLabel + ":\n");
-        String[] condType = visit(ctx.expression()).split("\\s+"); // compiles into a register
-        unloadCheckpoint(condType, funcId, this.ctx.getTopReg(), this.ctx.getTopReg());
-        if (verbose)
-        {
-            System.out.printf("#########################################    While Loop    #########################################\n");
-            System.out.printf("Condition Type: %s\n", (condType.length >= 2) ? condType[0] : condType[condType.length-1]);
-            System.out.printf("#########################################    While Loop END #####################################\n");
-        }
-        writeWhileCheck(funcId, (condType.length >= 2) ? condType[0] : condType[condType.length-1], endLabel);
-        this.ctx.clearStack(verbose);
-        visit(ctx.statement()); // compile whats inside
+        writeCheck(funcId, (condType.length >= 2) ? condType[0] : condType[condType.length-1], endLabel);
+        visit(ctx.statement()); // compiler whats inside
+        if (isFor) visit(ctx.forExpr);
+        this.ctx.clearStack(verbose); // for saftey lets clear the stack  after the expression, incase some idiot uses a stray expression here instead of a useful one
         this.ctx.writeBodyString(funcId, "j " + beginLabel + "\n");
         this.ctx.writeBodyString(funcId, endLabel + ":\n");
     }
@@ -1257,10 +1204,17 @@ public class Compiler extends cBaseVisitor<String>
         {
             System.out.printf("#########################################    Iteration Statement    #########################################\n");
         }
-        
+
+        String beginLabel = "";
+        String endLabel = "";
+
         if (ctx.While() != null)
         {
-            writeWhileCheck(ctx);
+            beginLabel = this.ctx.makeUnqiueLabel("WHILE");
+            endLabel = this.ctx.makeUnqiueLabel("ENDWHILE");
+            this.ctx.pushToBreakStack(endLabel);
+            this.ctx.pushToContinueStack(beginLabel);   
+            writeIteration(ctx, beginLabel, endLabel, false);
         }
         else if (ctx.Do() != null)
         {
@@ -1272,8 +1226,15 @@ public class Compiler extends cBaseVisitor<String>
         }
         else if (ctx.for2_token != null)
         {
-            writeFor2Loop(ctx);    
+            beginLabel = this.ctx.makeUnqiueLabel("FOR");
+            endLabel = this.ctx.makeUnqiueLabel("ENDFOR");
+            this.ctx.pushToBreakStack(endLabel);
+            this.ctx.pushToContinueStack(beginLabel); 
+            writeIteration(ctx, beginLabel, endLabel, true);
         }
+
+        this.ctx.popFromBreakStack();
+        this.ctx.popFromContinueStack();
 
         return "";
     }

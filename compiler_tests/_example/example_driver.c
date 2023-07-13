@@ -1,8 +1,8 @@
 
-int foo();
+int foo(int x);
 
 int main()
 {
     int x;
-    return !(foo()==-1);
+    return !(foo(0)==3);
 }
