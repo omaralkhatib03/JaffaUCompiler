@@ -72,7 +72,7 @@ public class Compiler extends cBaseVisitor<String>
         {
             case "char":
             {
-                
+                // TODO: handle char variable init
             }
             break;
             case "double":
@@ -553,7 +553,7 @@ public class Compiler extends cBaseVisitor<String>
             System.out.printf("###################### Primary Expression END ################### \n");            
         }
         // this will always load a pointer into the register at the top of the stack
-        String topReg = this.ctx.getReg("t", type, true);
+        String topReg = this.ctx.getReg("t", "int", true); // pointers are always ints
         if (symbol.isGlobal())
         {
             // TODO: implement global symbol
@@ -651,6 +651,7 @@ public class Compiler extends cBaseVisitor<String>
     {
         this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("rem", rega, rega, regb, instructionType.INT) + "\n");
     }
+
 
     @Override
     public String visitMultiplicativeExpression(cParser.MultiplicativeExpressionContext ctx)
@@ -1239,7 +1240,7 @@ String[] lhsType = visit(ctx.lhs).split("\\s+");
         {
             System.out.printf("#########################################    For2 Loop    #########################################\n");
             System.out.printf("Condition Type: %s\n", (condType.length >= 2) ? condType[0] : condType[condType.length-1]);
-            System.out.printf("#########################################    For2 Loop END #####################################\n");
+            System.out.printf("#########################################    For2 Loop END     #####################################\n");
         }
         writeCheck(funcId, condType[condType.length-1], endLabel);
         visit(ctx.statement()); // compiler whats inside
@@ -1713,18 +1714,14 @@ String[] lhsType = visit(ctx.lhs).split("\\s+");
 
     private String writeImmediateInstruction(String instruction, String registera, String registerb, int immediate, instructionType instrType)
     {
-        switch (instrType) {
-            case DOUBLE:
-            case FLOAT:
-            default: return String.format("%s %s, %s, %d", instruction, registera, registerb, immediate);  //default is int
-        }
+        return String.format("%s %s, %s, %d", instruction, registera, registerb, immediate);  //default is int
     }
 
     private String writeSwLwInstruction(String instruction, String registera, int immediate, String registerb, instructionType instrType)
     {
         switch (instrType) {
-            case DOUBLE:
-            case FLOAT:
+            case DOUBLE: return String.format("f%sd %s, %d(%s)", instruction, registera, immediate, registerb);
+            case FLOAT: return String.format("f%s %s, %d(%s)", instruction, registera, immediate, registerb);
             default: return String.format("%s %s, %d(%s)", instruction, registera, immediate, registerb); //default is int
         }
     }
@@ -1737,8 +1734,8 @@ String[] lhsType = visit(ctx.lhs).split("\\s+");
     private String writeMvInstruction(String regdst, String regsrc, instructionType instrType)
     {
         switch (instrType) {
-            case DOUBLE:
-            case FLOAT:
+            case DOUBLE: return String.format("fmv.d %s, %s", regdst, regsrc);
+            case FLOAT: return String.format("fmv.s %s, %s", regdst, regsrc);
             default: return String.format("mv %s, %s", regdst, regsrc); //default is int
         }
     }
@@ -1746,19 +1743,14 @@ String[] lhsType = visit(ctx.lhs).split("\\s+");
     private String writeRegInstruction(String instruction, String dst, String registera, String registerb, instructionType instrType)
     {
         switch (instrType) {
-            case DOUBLE:
-            case FLOAT:
+            case DOUBLE: String.format("f%s.d %s, %s, %s", instruction, dst, registera, registerb);
+            case FLOAT: String.format("f%s.s %s, %s, %s", instruction, dst, registera, registerb);
             default: return String.format("%s %s, %s, %s", instruction, dst, registera, registerb); //default is int
         }
     }
 
     private String writeBranchInstruction(String instruction, String regA, String regB, String label)
     {
-        // switch (instrType) {
-            // case DOUBLE:
-            // case FLOAT:
-            // default: return String.format("%s %s, %s, %s", instruction, regA, regB, label); //default is int
-        // }
         return String.format("%s %s, %s, %s", instruction, regA, regB, label);
     }
 
@@ -1771,7 +1763,14 @@ String[] lhsType = visit(ctx.lhs).split("\\s+");
     {
         if (arr.length == 1)
         {
-            this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", regA, 0, regB, instrType) + "\n");
+            if (instrType == instructionType.DOUBLE)
+            {
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("l", regA, 0, regB, instrType) + "\n");
+            }
+            else
+            {
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", regA, 0, regB, instrType) + "\n");
+            }
             return arr[0];
         }
         else

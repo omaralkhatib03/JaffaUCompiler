@@ -1,17 +1,9 @@
-int f();
-int g();
-
-int foo(int x)
+double f(double x, double y)
 {
-    int i;
-    for (i = 0; i < 5; i++)
-    {
-        if (i==3)
-            break;
-        else
-            x++;
-    }
-    f();
-    return g();
-    // return 3;
+    return x+y;
+}
+
+float g(float x, float y)
+{
+    return x+y;
 }
