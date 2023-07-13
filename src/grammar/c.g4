@@ -12,11 +12,11 @@ primaryExpression
 postfixExpression
     :
     primaryExpression
-    ('[' expression ']'
-    | '(' argumentExpressionList? ')' // function calls
-    | ('.' | '->') Identifier
-    | '++'
-    | '--'
+    ('[' arrayExpr=expression ']'
+    | funcCallParenth='(' argumentExpressionList? ')' // function calls 
+    | (objAccessOp='.' | ptrAccessOp='->') Identifier
+    | incOp='++'
+    | decOp='--'
     )*
     ;
 

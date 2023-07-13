@@ -154,7 +154,7 @@ class RegisterManager
             }
         }
 
-        return "-1"; // no avialable registers
+        return null; // no avialable registers
     }
 
     public boolean getRegStatus(String reg)
@@ -164,7 +164,7 @@ class RegisterManager
         {
             reg = reg.substring(1);
         }
-        
+
         Map<String, BitSet> rgMap = getMap(reg.substring(0, 1));
         if (rgMap == null)
             throw new IllegalArgumentException("Invalid register type");
@@ -327,7 +327,7 @@ public class Context
     public String getReg(String regType, String symbolType, boolean onStack)
     {
         String regOut = this.regManager.getReg(regType, symbolType);
-        if (onStack)
+        if (onStack && regOut != null)
             this.registerStack.push(regOut);
         return regOut;
     }
@@ -535,9 +535,12 @@ public class Context
         this.regManager.printRegMaps();
     }
 
+    @SuppressWarnings("unchecked")
     public void printRegisterStackStatus() // ONLY USE THIS AT THE END OF THE PROGRAM
     {
         System.out.printf("Register Stack Size: %s\n", this.registerStack.size());
+        Stack<String> tmp = (Stack<String>) this.registerStack.clone();
+
         while (!registerStack.empty())
         {
             System.out.printf("%s \n", this.registerStack.pop());

@@ -498,8 +498,21 @@ public class Compiler extends cBaseVisitor<String>
         if (constant.matches(intRegex))
         {
             type = "constant int";
-            String reg = this.ctx.getReg("t", "int", true);
+            String reg; 
+            reg = this.ctx.getReg("t", "int", true);
+            
+            if (reg == null)
+                reg = this.ctx.getReg("a", "int", true);
+
+            if (reg == null) // sorta illegal but not really cz i will store all saved regs on the stack later on when implementing recursion
+                reg = this.ctx.getReg("s", "int", true);
+                
+            if (reg == null)
+                throw new RuntimeException("Error: Cannot find register to load constant into");
+
+
             this.ctx.bodyStringsMap.put(currFunction.getId(), currFunctionBody + writeLiInstruction(reg, constant) + "\n");
+        
         }
         else if (constant.matches(floatRegex))
         {
@@ -510,8 +523,8 @@ public class Compiler extends cBaseVisitor<String>
         {
             type = "constant char";
             // TODO: implement char constant
-        
         }
+
         if (type.equals("")) // could not identify type
         {
             System.err.printf("Error: Invalid constant %s\n", constant);
@@ -617,7 +630,6 @@ public class Compiler extends cBaseVisitor<String>
         String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
         unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), this.ctx.getTopReg());
         String op = ctx.op.getText();
-        
         switch (op) 
         {
             case "*":
@@ -670,6 +682,7 @@ public class Compiler extends cBaseVisitor<String>
             case "+":
             {
                 writeAddition(lReg, this.ctx.getTopReg());
+
             }
             break;
             case "-":
@@ -678,7 +691,7 @@ public class Compiler extends cBaseVisitor<String>
             }
             break;
         }
-
+        
         this.ctx.clearTopOfStack(); //clears r reg
 
         return "Additive " + lhsType; // to inform parent that a additive expression was evaluated, hence the value in lreg would not be treated as a pointer
@@ -1147,7 +1160,6 @@ public class Compiler extends cBaseVisitor<String>
             break;
             default: // default int
             {
-                // writeBranchInstruction("bne", this.ctx.getTopReg(), "zero", label);
                 this.ctx.writeBodyString(funcId, writeBranchInstruction("bne", this.ctx.getTopReg(), "zero", label) + "\n");
             }
             break;
@@ -1252,11 +1264,11 @@ public class Compiler extends cBaseVisitor<String>
         }
         else if (ctx.Do() != null)
         {
-        
+            // TODO: implement do while loop
         }
         else if (ctx.for1_token != null)
         {
-        
+            // TODO: implement for1 loop
         }
         else if (ctx.for2_token != null)
         {
@@ -1289,22 +1301,22 @@ public class Compiler extends cBaseVisitor<String>
         switch ((condType.length >= 2) ? condType[0] : condType[condType.length-1]) {
             case "float":
             {
-
+                // TODO: implement float for if no else
             }
             break;
             case "double":
             {
-
+                // TODO: implement double if no else
             }
             break;
             case "unsigned":
             {
-
+                // TODO: implement unsigned if no else
             }
             break;
             case "char":
             {
-
+                // TODO: implement char if no else
             }
             default: // default int
             {
@@ -1329,25 +1341,25 @@ public class Compiler extends cBaseVisitor<String>
         unloadCheckpoint(condType, funcId, this.ctx.getTopReg(), this.ctx.getTopReg());
         String endIfLabel = this.ctx.makeUnqiueLabel("ENDIF");
         String elseLabel = this.ctx.makeUnqiueLabel("ELSE");
-        switch ((condType.length >= 2) ? condType[0] : condType[condType.length-1]) {
+        switch (condType[condType.length-1]) { // shoof il ta3aseh **Face Palm**
             case "float":
             {
-
+                // 
             }
             break;
             case "double":
             {
-
+                // TODO: implement double if with else
             }
             break;
             case "unsigned":
             {
-
+                // TODO: implement unsigned if with else
             }
             break;
             case "char":
             {
-
+                // TODO: implement char if with else
             }
             default: // default int
             {
@@ -1385,6 +1397,86 @@ public class Compiler extends cBaseVisitor<String>
 
     ///////////////////////////////////////////////////////////////////////
     //////////////////        SelectionStatement END    ///////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        PostfixExpressions        ///////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+    private String writeIncDecPostfixExpression(cParser.PostfixExpressionContext ctx, String type, String funcId, int incDec)
+    {
+        switch (type) {
+            case "float":
+            {
+                // TODO: implement float IncDec postfix expression
+            }
+            break;
+            case "double":
+            {
+                // TODO: TODO: implement double IncDec postfix expression
+            }
+            break;
+            case "unsigned":
+            {
+                // TODO: implement unsigned IncDec postfix expression
+            }
+            break;
+            case "char":
+            {
+                // TODO: implement char unsigned IncDec postfix expression
+            }
+            default: // default int
+            {
+                this.ctx.writeBodyString(funcId, writeImmediateInstruction("addi", this.ctx.getTopReg(), this.ctx.getTopReg(), incDec) + "\n");
+                String tmpReg = this.ctx.getTopReg();
+                visit(ctx.primaryExpression()); // get the location agian
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("sw", tmpReg, 0, this.ctx.getTopReg()) + "\n");
+                this.ctx.clearTopOfStack(); // clears the pointer to the location
+                return "incDec " + type;
+            }
+        }
+
+        return "";
+    }
+
+    @Override
+    public String visitPostfixExpression(cParser.PostfixExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+        
+        if (ctx.arrayExpr != null)
+        {
+            // TODO: implement multi-dimensional array access
+        }
+        else if (ctx.objAccessOp != null)
+        {
+            // TODO: implement object access
+        }
+        else if (ctx.ptrAccessOp != null)
+        {
+            // TODO: implement pointer access
+        }
+        else if (ctx.incOp != null || ctx.decOp != null)
+        {
+            // TODO: implement increment and decrement
+            String funcId = this.ctx.getCurrentFunction().getId();
+            String[] type = visit(ctx.primaryExpression()).split("\\s+");
+            unloadCheckpoint(type, funcId, this.ctx.getTopReg(), this.ctx.getTopReg());
+            return writeIncDecPostfixExpression(ctx, type[type.length-1], funcId, (ctx.incOp != null) ? 1 : -1); // value loaded
+        }
+        else if (ctx.funcCallParenth != null)
+        {
+            // TODO: implement function call, with parameters
+            // TODO: implement function call, without parameters
+        }
+
+        throw new RuntimeException("Unkown postfix expression");
+    }
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        PostfixExpressions END    ///////////////////
     ///////////////////////////////////////////////////////////////////////
 
     public static void main(String[] args) throws IOException, NoSuchFileException 
