@@ -1,3 +1,6 @@
+int f();
+int g();
+
 int foo(int x)
 {
     int i;
@@ -8,5 +11,7 @@ int foo(int x)
         else
             x++;
     }
-    return x;
+    f();
+    return g();
+    // return 3;
 }

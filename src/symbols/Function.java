@@ -77,6 +77,11 @@ public class Function extends Scope
         return this.freeBytes;
     }
 
+    public void setType(String type)
+    {
+        this._type = type;
+    }
+
 }
 
 

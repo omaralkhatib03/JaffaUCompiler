@@ -10,40 +10,42 @@ sw a0, -20(s0)
 li t0, 0
 addi t1, s0, -24
 sw t0, 0(t1)
-_FOR_2:
+_FOR_4:
 addi t0, s0, -24
 lw t0, 0(t0)
 li t1, 5
 slt t0, t0, t1
 andi t0, t0, 255
-beq t0, zero, _ENDFOR_3
+beq t0, zero, _ENDFOR_5
 addi t1, s0, -24
 lw t1, 0(t1)
 li t2, 3
 sub t1, t1, t2
 seqz t1, t1
-beq t1, zero, _ELSE_6
-j _ENDFOR_3
-j _ENDIF_5
-_ELSE_6:
+beq t1, zero, _ELSE_8
+j _ENDFOR_5
+j _ENDIF_7
+_ELSE_8:
 addi t0, s0, -20
 lw t0, 0(t0)
 addi t0, t0, 1
 addi t1, s0, -20
 sw t0, 0(t1)
-_ENDIF_5:
+_ENDIF_7:
 addi t0, s0, -24
 lw t0, 0(t0)
 addi t0, t0, 1
 addi t1, s0, -24
 sw t0, 0(t1)
-j _FOR_2
-_ENDFOR_3:
-addi t0, s0, -20
-lw t0, 0(t0)
+j _FOR_4
+_ENDFOR_5:
+call f
+mv t0, a0
+call g
+mv t0, a0
 mv a0, t0
-j _RETURN_0
-_RETURN_0:
+j _RETURN_2
+_RETURN_2:
 lw ra, 28(sp)
 lw s0, 24(sp)
 addi sp, sp, 32

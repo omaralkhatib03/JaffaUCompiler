@@ -4,6 +4,7 @@ import grammar.cLexer;
 import grammar.cParser;
 import symbols.CommonSymbol;
 import symbols.Function;
+import symbols.Pointer;
 import symbols.Struct;
 import symbols.Variable;
 
@@ -144,6 +145,26 @@ public class Compiler extends cBaseVisitor<String>
         return var;
     } 
 
+    private String declareFunction(cParser.DeclaratorContext ctx, String id, String returnType)
+    {
+        if (this.verbose)
+        {
+            System.out.printf("###################### Function Declaration ################### \n");
+            System.out.printf("Function Name: %s\n", id);
+            // System.out.printf("Return Type: %s\n", functionType);
+            // System.out.printf("Function Header: \n%s\n", functionHeaderString);
+            // System.out.printf("Function Body: \n%s\n", functionBodyString);
+        }
+
+        this.ctx.addScope(id, this.ctx.getDeclarationMode(), true, true);
+        this.ctx.setReturnLabel(id);
+        
+        // get parameters ready
+        if (ctx.directDeclarator().param != null)
+            prepareParameter(ctx.directDeclarator().param);
+        if (this.verbose) System.out.printf("###################### Function Declaration END ################### \n");
+        return id;
+    }
 
     @Override
     public String visitDeclarator(cParser.DeclaratorContext ctx)
@@ -158,19 +179,12 @@ public class Compiler extends cBaseVisitor<String>
         if (this.ctx.getDeclarationMode().equals("")) // we are not declaring symbols
             throw new RuntimeException("Error: Cannot declare symbol outside of declaration, type not found");
 
-        if (ctx.directDeclarator().funcCall != null && ctx.directDeclarator().param != null) // if there is a function call, we need to add it to the type
-            throw new RuntimeException("Error: Cannot declare function call");
-
         // declare the symbol accordingly
         CommonSymbol symbol = null;
         
         if (ctx.pointer() != null) // if there is a pointer, we need to add it to the type
         {
             // TODO: declare pointer
-        }
-        else if (ctx.directDeclarator().structDecl != null)
-        {
-            // TODO: declare struct
         }
         else if (ctx.directDeclarator().arrayDecl != null)
         {
@@ -180,11 +194,10 @@ public class Compiler extends cBaseVisitor<String>
         {
             symbol = declareVariable(id, this.ctx.getDeclarationMode(), true, this.ctx.isGlobalScope());
         }
-        else
+        else // if its not any other declarator then its a function declare it here
         {
-            // throw new RuntimeException("Error: Cannot declare symbol, check syntax");
-            return "";
-        }
+            return declareFunction(ctx, id, this.ctx.getDeclarationMode());
+        }   
 
 
         // add declared symbol to the correct scope
@@ -197,7 +210,7 @@ public class Compiler extends cBaseVisitor<String>
             this.ctx.addLocalSymbol(symbol); // adding global symbol
         }
 
-        return "";
+        return id;
     }
 
 
@@ -308,39 +321,27 @@ public class Compiler extends cBaseVisitor<String>
     @Override 
     public String visitFunctionDefinition(cParser.FunctionDefinitionContext ctx) 
     { 
-        String functionName = "";
+
+        System.out.printf("Got here\n");
         String functionType = getType(ctx.declarationSpecifiers());
         
+        this.ctx.setDeclarationMode(functionType);
+        String id = visit(ctx.declarator());
+        this.ctx.setDeclarationMode("");
+
+        if (ctx.compoundStatement() != null)
+        {
+            String functionHeaderString = String.format(".text\n.globl %s\n\n%s:\n", id, id);
+            String functionBodyString = "";
+            this.ctx.headerStringsMap.put(id, functionHeaderString);
+            this.ctx.bodyStringsMap.put(id, functionBodyString);            
+        }
+
         if (!typeSizeMap.keySet().contains(functionType))
             throw new RuntimeException("Error: Invalid function type");
 
-        try {
-            functionName = ctx.declarator().directDeclarator().directDeclarator().Identifier().getText();              
-        } catch (Exception e) {
-            System.err.printf("Error: Cannot find function Id\n%s\n", e.toString());
-        }
-
-        String functionHeaderString = String.format(".text\n.globl %s\n\n%s:\n", functionName, functionName);
-        String functionBodyString = "";
-        
-        if (this.verbose)
-        {
-            System.out.printf("###################### Function Declaration ################### \n");
-            System.out.printf("Function Name: %s\n", functionName);
-            System.out.printf("Return Type: %s\n", functionType);
-            // System.out.printf("Function Header: \n%s\n", functionHeaderString);
-            // System.out.printf("Function Body: \n%s\n", functionBodyString);
-        }
-
-        this.ctx.addScope(functionName, functionType, true, true);
-        this.ctx.setReturnLabel(functionName);
-        this.ctx.headerStringsMap.put(functionName, functionHeaderString);
-        this.ctx.bodyStringsMap.put(functionName, functionBodyString);
-        // get parameters ready
-        if (ctx.declarator().directDeclarator().param != null)
-            prepareParameter(ctx.declarator().directDeclarator().param);
-        if (this.verbose) System.out.printf("###################### Function Declaration END ################### \n");
         visit(ctx.compoundStatement());        
+
         return "";
     }
 
@@ -536,19 +537,14 @@ public class Compiler extends cBaseVisitor<String>
         return type;
     }
 
-    public String primaryExpressionId(TerminalNode idNode)
+    public String variablePrimaryExpression(Variable symbol)
     {
-        String id = idNode.getText();
-        String type = "";
-        
-        if (!this.ctx.symbolExistsInScope(id))
-            throw new RuntimeException(String.format("Error: Symbol %s does not exist in scope", id));
+        String type = symbol.getType();
+        String id = symbol.getId();
 
-        CommonSymbol symbol = this.ctx.getSymbol(id);
-        type = symbol.getType();
         if (verbose)
         {
-            System.out.printf("###################### Primary Expression ####################### \n");
+            System.out.printf("###################### Identifier Variable ####################### \n");
             System.out.printf("id: %s, type: %s, offset: %s \n", id, type, symbol.getOffset());
             System.out.printf("###################### Primary Expression END ################### \n");            
         }
@@ -564,6 +560,39 @@ public class Compiler extends cBaseVisitor<String>
         }
         
         return type;
+    }
+
+    public String primaryExpressionId(TerminalNode idNode)
+    {
+        String id = idNode.getText();
+        String type = "";
+        
+        if (!this.ctx.symbolExistsInScope(id))
+            throw new RuntimeException(String.format("Error: Symbol %s does not exist in scope", id));
+
+        CommonSymbol symbol = this.ctx.getSymbol(id);
+        if (symbol instanceof Variable)
+        {
+            return variablePrimaryExpression((Variable) symbol);
+        }
+        else if (symbol instanceof Function)
+        {
+            return symbol.getId(); // return the name of the function we are calling
+        }
+        else if (symbol instanceof Pointer)
+        {
+            // TODO: implement pointer primary expression
+        }
+        else if (symbol instanceof Struct)
+        {
+            // TODO: implement struct primary expression
+        }
+        else if (symbol instanceof symbols.Array)
+        {
+            // TODO: implement array primary expression
+        }
+
+        throw new RuntimeException("Error: Invalid symbol type");
     }
 
     @Override
@@ -1174,7 +1203,7 @@ public class Compiler extends cBaseVisitor<String>
            return visit(ctx.expression());
         return "";
     }
-    
+
     private void writeIteration(cParser.IterationStatementContext ctx, String beginLabel, String endLabel, boolean isFor)
     {
         String funcId = this.ctx.getCurrentFunction().getId();
@@ -1189,7 +1218,7 @@ public class Compiler extends cBaseVisitor<String>
             System.out.printf("Condition Type: %s\n", (condType.length >= 2) ? condType[0] : condType[condType.length-1]);
             System.out.printf("#########################################    For2 Loop END #####################################\n");
         }
-        writeCheck(funcId, (condType.length >= 2) ? condType[0] : condType[condType.length-1], endLabel);
+        writeCheck(funcId, condType[condType.length-1], endLabel);
         visit(ctx.statement()); // compiler whats inside
         if (isFor) visit(ctx.forExpr);
         this.ctx.clearStack(verbose); // for saftey lets clear the stack  after the expression, incase some idiot uses a stray expression here instead of a useful one
@@ -1427,10 +1456,46 @@ public class Compiler extends cBaseVisitor<String>
             unloadCheckpoint(type, funcId, this.ctx.getTopReg(), this.ctx.getTopReg());
             return writeIncDecPostfixExpression(ctx, type[type.length-1], funcId, (ctx.incOp != null) ? 1 : -1); // value loaded
         }
-        else if (ctx.funcCallParenth != null)
+        else // function calls by def
         {
-            // TODO: implement function call, with parameters
-            // TODO: implement function call, without parameters
+            System.out.printf("Function Call %s\n", ctx.argumentExpressionList());
+
+            if (ctx.argumentExpressionList().toArray().length == 0)
+            {
+                String funcId = this.ctx.getCurrentFunction().getId();
+                String symbolId = visit(ctx.primaryExpression());
+                this.ctx.writeBodyString(funcId, "call " + symbolId + "\n");
+                String type = this.ctx.getFunction(symbolId).getType();
+                
+                switch (type) 
+                {
+                    case "float":
+                    {
+                    }
+                    break;
+                    case "double":
+                    {
+                    }
+                    break;
+                    case "unsigned":
+                    {
+                    }
+                    break;
+                    case "char":
+                    {
+                    }
+                    break;
+                    default: // default int
+                    {
+                        this.ctx.getReg("t", type, true); // put the return value in a register
+                        this.ctx.writeBodyString(funcId, writeMvInstruction(this.ctx.getTopReg(), "a0") + "\n"); // move the data out of a0 and return
+                    }
+                    break;
+                }
+                System.out.printf("callType: %s\n", type);
+                return "FunctionCall " + type;
+            }
+          //  TODO: implement function call, with parameters            
         }
 
         throw new RuntimeException("Unkown postfix expression");
@@ -1438,6 +1503,26 @@ public class Compiler extends cBaseVisitor<String>
 
     ///////////////////////////////////////////////////////////////////////
     //////////////////        PostfixExpressions END    ///////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        ExternalDeclarations        /////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+    @Override
+    public String visitExternalDeclaration(cParser.ExternalDeclarationContext ctx)
+    {
+        if (ctx.functionDefinition() != null)
+            return visit(ctx.functionDefinition());
+        else if (ctx.declaration() != null)
+            return visit(ctx.declaration());
+
+        return "";
+    }
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////      ExternalDeclarations END      /////////////////
     ///////////////////////////////////////////////////////////////////////
 
     public static void main(String[] args) throws IOException, NoSuchFileException 

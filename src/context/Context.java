@@ -441,14 +441,19 @@ public class Context
         this.regManager.clearAllRegisters();
     }
     
+
     public boolean symbolExistsInScope(String id)
     {
+        System.out.printf("Checking if symbol exists in scope: %b\n", this._FunctionSymbolTable.containsKey(id));
+        this.printFunctionSymbolTable();
+        
+        // System.out.printf("%s\n", this._GlobalSymbolTable.get(id).getId());
         for (Scope i : this._scopeStack)
         {
             if (i.getSymbol(id) != null)
                 return true;
         }
-        return (this._GlobalSymbolTable.containsKey(id) || this.getTopScope().getSymbol(id) != null); // does the symbol exist on the correct scope ?
+        return ((this._GlobalSymbolTable.containsKey(id)) || this._FunctionSymbolTable.containsKey(id) || this.getTopScope().getSymbol(id) != null); // does the symbol exist on the correct scope ?
     }
 
     @SuppressWarnings("unchecked")
@@ -565,6 +570,11 @@ public class Context
     public String popFromContinueStack()
     {
         return this._continueStack.pop();
+    }
+
+    public void setFunctionType(String id, String type)
+    {
+        this._FunctionSymbolTable.get(id).setType(type);
     }
 
 

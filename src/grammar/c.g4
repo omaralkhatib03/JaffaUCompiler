@@ -224,8 +224,8 @@ directDeclarator // might need to change back idk yet, got it from officical ans
     |   '(' declarator ')' // idk
 	|   directDeclarator '[' arrayDecl=constantExpression ']' // array
 	|   arrayParam=directDeclarator '[' ']' // array parameter
-	|   funcCall=directDeclarator '(' param=parameterTypeList ')' // function with parameters
-	|   directDeclarator structDecl='(' identifierList? ')' // identifierList is optional, struct, classes and functions with no params
+	|   directDeclarator '(' param=parameterTypeList ')' // function with parameters
+	|   directDeclarator '(' identifierList? ')' // identifierList is optional, struct, classes and functions with no params
     ;
 
 
