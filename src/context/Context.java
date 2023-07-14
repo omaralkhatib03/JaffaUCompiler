@@ -123,7 +123,6 @@ class RegisterManager
         }
         
         Map<String, BitSet> rgMap = getMap(reg.substring(0, 1));
-        
         if (rgMap == null)
             throw new IllegalArgumentException("Invalid register type");
         
@@ -515,30 +514,6 @@ public class Context
     {
         return this.registerStack.empty();
     }
-    //////////////////////////////////////////////////
-    ////////////////     Printers     ////////////////
-    //////////////////////////////////////////////////
-
-    public void printFunctionSymbolTable()
-    {
-        for (String i : _FunctionSymbolTable.keySet()) 
-        {
-            System.out.printf("Function Name: %s\n", i);
-        }
-    }
-
-    public void printGlobalSymbolTable()
-    {
-        for (String i : _GlobalSymbolTable.keySet()) 
-        {
-            System.out.printf("Global Name: %s\n", i);
-        }
-    }
-
-    public void printRegMaps()
-    {
-        this.regManager.printRegMaps();
-    }
 
     public void pushToBreakStack(String label)
     {
@@ -575,7 +550,39 @@ public class Context
         this._FunctionSymbolTable.get(id).setType(type);
     }
 
+    public boolean isFloatReg(String reg)
+    {
+        return (reg.charAt(0) == 'f');
+    }
 
+    public boolean isTopOfRegStack(String reg)
+    {
+        return this.registerStack.peek().equals(reg);
+    }
+    //////////////////////////////////////////////////
+    ////////////////     Printers     ////////////////
+    //////////////////////////////////////////////////
+
+    public void printFunctionSymbolTable()
+    {
+        for (String i : _FunctionSymbolTable.keySet()) 
+        {
+            System.out.printf("Function Name: %s\n", i);
+        }
+    }
+
+    public void printGlobalSymbolTable()
+    {
+        for (String i : _GlobalSymbolTable.keySet()) 
+        {
+            System.out.printf("Global Name: %s\n", i);
+        }
+    }
+
+    public void printRegMaps()
+    {
+        this.regManager.printRegMaps();
+    }
 
     @SuppressWarnings("unchecked")
     public void printRegisterStackStatus() // ONLY USE THIS AT THE END OF THE PROGRAM

@@ -1,8 +1,7 @@
 
-int foo(int x);
+float f(float x, int n);
 
 int main()
 {
-    int x;
-    return !(foo(0)==3);
+    return !(f(5.0f,3)==125.0f);
 }

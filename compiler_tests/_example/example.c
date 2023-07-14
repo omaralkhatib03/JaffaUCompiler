@@ -1,9 +1,10 @@
-double f(double x, double y)
+float f(float x, int n)
 {
-    return x+y;
-}
-
-float g(float x, float y)
-{
-    return x+y;
+    float acc=1.0f;
+    int i=0;
+    while(i<n){
+        i++;
+        acc=acc*x;
+    }
+    return acc;
 }
