@@ -1,10 +1,10 @@
-float f(float x, int n)
+// char foo();
+// unsigned baa();
+
+char f(int y)
 {
-    float acc=1.0f;
-    int i=0;
-    while(i<n){
-        i++;
-        acc=acc*x;
-    }
-    return acc;
+    int x = 1;
+    // baa();
+    // foo();
+    return x;
 }

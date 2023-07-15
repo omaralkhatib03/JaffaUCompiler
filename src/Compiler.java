@@ -440,6 +440,11 @@ public class Compiler extends cBaseVisitor<String>
                 unloadCheckpoint(exprType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), insType);
                 if (verbose) System.out.printf("Expression returned type: %s\n", exprType[exprType.length-1]);
                 this.ctx.setFunctionReturn(this.ctx.getCurrentFunction().getId(), false);
+                String funcId = this.ctx.getCurrentFunction().getId();
+                if (exprType[exprType.length - 1] != this.ctx.getCurrentFunction().getType())
+                {
+                    castType(funcId, this.ctx.getTopReg(), this.ctx.getCurrentFunction().getType(), exprType[exprType.length - 1]); // cast the expression to the correct type
+                }
 
                 switch (this.ctx.getCurrentFunction().getType()) {
                     case "double":
@@ -452,17 +457,7 @@ public class Compiler extends cBaseVisitor<String>
                         floatReturn(this.ctx.getTopReg(), ctx);
                     }
                     break;
-                    case "char":
-                    {
-                        // TODO: implement char return
-                    }
-                    break;
-                    case "unsigned":
-                    {
-                        intReturn(this.ctx.getTopReg(), ctx); // all the relevant expressions will use the correct unsigned instructions, the return move remains the same   
-                    }
-                    break;
-                    default: // int 
+                    default: // int, char, unsigned
                     {
                         intReturn(this.ctx.getTopReg(), ctx);
                     }
@@ -1374,7 +1369,7 @@ public class Compiler extends cBaseVisitor<String>
     private void writeIteration(cParser.IterationStatementContext ctx, String beginLabel, String endLabel, boolean isFor)
     {
         String funcId = this.ctx.getCurrentFunction().getId();
-        if (isFor) visit(ctx.forInit);
+        if (isFor && ctx.forInit != null) visit(ctx.forInit);
         this.ctx.writeBodyString(funcId, beginLabel + ":\n");
         String[] condType = visit((isFor) ? ctx.forCond : ctx.whileCond).split("\\s+"); // compiles into a register       
         instructionType type = (condType[condType.length-1].equals("double")) ? instructionType.DOUBLE : (condType[condType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
@@ -1401,39 +1396,34 @@ public class Compiler extends cBaseVisitor<String>
         {
             System.out.printf("#########################################    Iteration Statement    #########################################\n");
         }
-
-        String beginLabel = "";
-        String endLabel = "";
-
+        
         if (ctx.While() != null)
         {
-            beginLabel = this.ctx.makeUnqiueLabel("WHILE");
-            endLabel = this.ctx.makeUnqiueLabel("ENDWHILE");
-            this.ctx.pushToBreakStack(endLabel);
-            this.ctx.pushToContinueStack(beginLabel);   
-            writeIteration(ctx, beginLabel, endLabel, false);
+            compileIteration(ctx, "WHILE", false);
         }
         else if (ctx.Do() != null)
         {
             // TODO: implement do while loop
         }
-        else if (ctx.for1_token != null)
+        else if (ctx.for1_token != null || ctx.for2_token != null)
         {
-            // TODO: implement for1 loop
-        }
-        else if (ctx.for2_token != null)
-        {
-            beginLabel = this.ctx.makeUnqiueLabel("FOR");
-            endLabel = this.ctx.makeUnqiueLabel("ENDFOR");
-            this.ctx.pushToBreakStack(endLabel);
-            this.ctx.pushToContinueStack(beginLabel); 
-            writeIteration(ctx, beginLabel, endLabel, true);
+            compileIteration(ctx, "FOR", true);
         }
 
         this.ctx.popFromBreakStack();
         this.ctx.popFromContinueStack();
 
         return "";
+    }
+
+    private void compileIteration(cParser.IterationStatementContext ctx, String labelName, boolean isFor) {
+        String beginLabel;
+        String endLabel;
+        beginLabel = this.ctx.makeUnqiueLabel(labelName);
+        endLabel = this.ctx.makeUnqiueLabel("END" + labelName);
+        this.ctx.pushToBreakStack(endLabel);
+        this.ctx.pushToContinueStack(beginLabel); 
+        writeIteration(ctx, beginLabel, endLabel, isFor);
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -1504,7 +1494,7 @@ public class Compiler extends cBaseVisitor<String>
         switch (condType[condType.length-1]) { // shoof il ta3aseh **Face Palm**
             case "float":
             {
-                // 
+                // TODO: implement float if with else
             }
             break;
             case "double":
@@ -1577,16 +1567,17 @@ public class Compiler extends cBaseVisitor<String>
                 // TODO: TODO: implement double IncDec postfix expression
             }
             break;
-            case "unsigned":
-            {
-                // TODO: implement unsigned IncDec postfix expression
-            }
-            break;
-            case "char":
-            {
-                // TODO: implement char unsigned IncDec postfix expression
-            }
-            default: // default int
+            // case "unsigned": // should be fine, but check this again, dont mess me over TODO: check this again
+            // {
+            //     // TODO: implement unsigned IncDec postfix expression
+            // }
+            // break;
+            // case "char":
+            // {
+            //     // TODO: implement char unsigned IncDec postfix expression
+            // }
+            // break;
+            default: // default int, char, unsigned; 
             {
                 this.ctx.writeBodyString(funcId, writeImmediateInstruction("addi", this.ctx.getTopReg(), this.ctx.getTopReg(), incDec, instructionType.INT) + "\n");
                 String tmpReg = this.ctx.getTopReg();
@@ -1649,17 +1640,17 @@ public class Compiler extends cBaseVisitor<String>
                         // TODO: implement double function call No args
                     }
                     break;
-                    case "unsigned":
-                    {
-                        // TODO: implement unsigned function call No args
-                    }
-                    break;
-                    case "char":
-                    {
-                        // TODO: implement char function call No args
-                    }
-                    break;
-                    default: // default int
+                    // case "unsigned": // not 100% sure about this TODO: check this again
+                    // {
+                    //     // TODO: implement unsigned function call No args
+                    // }
+                    // break;
+                    // case "char":
+                    // {
+                    //     // TODO: implement char function call No args
+                    // }
+                    // break;
+                    default: // default int, char, unsigned CHECK THIS AGAIN
                     {
                         this.ctx.getReg("t", type, true); // put the return value in a register
                         this.ctx.writeBodyString(funcId, writeMvInstruction(this.ctx.getTopReg(), "a0", instructionType.INT) + "\n"); // move the data out of a0 and return
@@ -1909,35 +1900,102 @@ public class Compiler extends cBaseVisitor<String>
         return String.format("%s %s, %s", instruction, rega, rega);
     }
 
+    private String writeCvtsInstruction(String instruction, String dstReg, String rega)
+    {
+        return String.format("%s %s, %s", instruction, dstReg, rega);
+    }
+
+    private String writeCvtsRTZInstruction(String instruction, String dstReg, String rega)
+    {
+        return String.format("%s %s, %s, rtz", instruction, dstReg, rega);
+    }
+    
+    // FUNCTIONS SHOULD BE IDEALLY CALLED WHEN THE REGISTERS INPUT ARE AT THE TOP OF THE STACK
+    private void castType(String funcId, String reg, String targetType, String inputType) // split into two parts, getting the new register and writing the correct instructions
+    {
+        String replacedReg = reg;
+        if ((inputType.equals("char") || inputType.equals("unsigned"))  && (targetType.equals("float") || targetType.equals("double")))
+        {
+            replacedReg = getReplacementReg(reg, targetType);
+            this.ctx.writeBodyString(funcId, writeCvtsInstruction("fcvt."+ (inputType.equals("double") ? "d" : "s") +".wu", replacedReg, reg) + "\n");
+        }
+        else if (inputType.equals("int") && (targetType.equals("float") || targetType.equals("double")))
+        {
+            replacedReg = getReplacementReg(reg, targetType);
+            this.ctx.writeBodyString(funcId, writeCvtsInstruction("fcvt."+ (inputType.equals("double") ? "d" : "s") +".w", replacedReg, reg) + "\n");
+        }
+        else if ((inputType.equals("float") || inputType.equals("double")) && (targetType.equals("char") || targetType.equals("unsigned")))
+        {
+            replacedReg = getReplacementReg(reg, targetType);
+            this.ctx.writeBodyString(funcId, writeCvtsRTZInstruction("fcvt.wu."+ (inputType.equals("double") ? "d" : "s"), replacedReg, reg) + "\n");
+        }
+        else if ((inputType.equals("float") || inputType.equals("double")) && targetType.equals("int"))
+        {
+            this.ctx.writeBodyString(funcId, writeCvtsRTZInstruction("fcvt.w."+ (inputType.equals("double") ? "d" : "s"), replacedReg, reg) + "\n");
+        }
+        else if (inputType.equals("float") && targetType.equals("double"))
+        {
+            this.ctx.writeBodyString(funcId, writeCvtsInstruction("fcvt.d.s", replacedReg, reg) + "\n");
+        }
+        else if (inputType.equals("double") && targetType.equals("float"))
+        {
+            replacedReg = getReplacementReg(reg, targetType);
+            this.ctx.writeBodyString(funcId, writeCvtsInstruction("fcvt.s.d", replacedReg, reg) + "\n");
+        }
+        else
+        {
+            if (verbose) System.out.printf("castType: no casting needed\n");
+        }
+
+        if (targetType.equals("char"))
+            this.ctx.writeBodyString(funcId, writeImmediateInstruction("andi", replacedReg, replacedReg, 0xff, instructionType.INT) + "\n");
+
+    }
+
+    private String getReplacementReg(String reg, String targetType) 
+    {
+        // for debugging purposes
+        try {
+            assert(reg.equals(this.ctx.getTopReg()));
+        } catch (Exception e) {
+            System.out.printf("dead reg created: %s, topReg: %s\n", reg, this.ctx.getTopReg());
+        }
+
+        if (reg.equals(this.ctx.getTopReg()))
+            this.ctx.clearTopOfStack();
+
+        String newReg = this.ctx.getReg("a", targetType, true);        
+        
+        if (newReg == null)
+            newReg = this.ctx.getReg("t", targetType, true);
+        
+        if (newReg == null) // kinda illegal but will be alowed since al sregs will be stored on the stack at the begining of each function call
+            newReg = this.ctx.getReg("s", targetType, true);
+
+        if (newReg == null)
+            throw new RuntimeException("castType: newReg is null, cant find a new reg");
+        
+
+        
+        return newReg;
+    }
+    
+    // FUNCTIONS SHOULD BE IDEALLY CALLED WHEN THE REGISTERS INPUT ARE AT THE TOP OF THE STACK
     private String unloadCheckpoint(String [] arr, String funcId, String reg, instructionType instrType)
     {
-        if (arr.length != 1) // i need to unloadCheckpoint
+        if (arr.length != 1) // i dont need to unload
             return String.format("%s", arr[arr.length-1]);
+        
+        switch (instrType) 
+        {
+            case INT:
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", reg, "0", reg, instrType) + "\n");
+                break;
+            default: 
+                String tmpReg = getReplacementReg(reg, arr[arr.length-1]);
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction(instrType == instructionType.DOUBLE ? "l" : "lw", tmpReg, "0", reg, instrType) + "\n");
+                break;
 
-        switch (instrType) {
-            case DOUBLE:
-            {
-                if (this.ctx.isTopOfRegStack(reg)) // should cover most cases where this function is inefiicent since its called mostley when the address is still the top of the stack
-                    this.ctx.clearTopOfStack();
-
-                // this part is slighty reigster innefiicent since it keeps a dead regiser on the stack until this statement is done, could be optimized 
-                String tmpReg = this.ctx.getReg("t", "double", true);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("l", tmpReg, "0", reg, instrType) + "\n");
-            }
-            break;
-            case FLOAT:
-            {
-                if (this.ctx.isTopOfRegStack(reg)) // should cover most cases where this function is inefiicent since its called mostley when the address is still the top of the stack
-                    this.ctx.clearTopOfStack();
-                
-                if (verbose) System.out.printf("Unloading %s\n", reg);
-                // this part is slighty reigster innefiicent since it keeps a dead regiser on the stack until this statement is done, could be optimized 
-                String tmpReg = this.ctx.getReg("t", "float", true);
-                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, "0", reg, instrType) + "\n");
-            }
-            break;
-            default: this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", reg, "0", reg, instrType) + "\n");
-            break;
         }
         return arr[arr.length-1];
     }

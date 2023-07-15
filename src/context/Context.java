@@ -559,6 +559,12 @@ public class Context
     {
         return this.registerStack.peek().equals(reg);
     }
+
+
+    // public void replaceRegOnStack()
+    // {
+        // 
+    // }
     //////////////////////////////////////////////////
     ////////////////     Printers     ////////////////
     //////////////////////////////////////////////////
