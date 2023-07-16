@@ -365,7 +365,7 @@ public class Compiler extends cBaseVisitor<String>
                 if (verbose) System.out.printf("Fid: %s, StackSize: %s \n", i, this.ctx.getFunctionStackSize(i));
                 String stackDecStr = writeStackDecrement(this.ctx.getFunctionStackSize(i));
                 if (verbose) System.out.printf("Called in Compilation unit, ENSURE THAT REGISTERS ARE EMPTY \n");
-                this.ctx.printRegisterStackStatus();
+                if (verbose) this.ctx.printRegisterStackStatus();
                 if (verbose) this.ctx.printRegMaps();
                 String parameters = writeParameters(this.ctx.getFunctionParameters(i));
                 String stackIncStr = writeStackIncrement(this.ctx.getFunctionStackSize(i), i);
@@ -925,7 +925,7 @@ public class Compiler extends cBaseVisitor<String>
     private void writeLGT(String rega, String regb, String precType, boolean isLT)
     {
         String lg = (isLT) ? "l" : "g";
-        System.out.printf("lg Boolean: %b, lg String: %s\n", isLT, lg);
+        if (verbose) System.out.printf("lg Boolean: %b, choosing ( l or g ): %s\n", isLT, lg);
         switch (precType) {
             case "double":
             {
@@ -956,6 +956,7 @@ public class Compiler extends cBaseVisitor<String>
     private void writeLGTEq(String rega, String regb, String precType, boolean isLT)
     {
         String lg = (isLT) ? "l" : "g";
+        if (verbose) System.out.printf("lg Boolean: %b, choosing ( l or g ): %s\n", isLT, lg);
         switch (precType) {
             case "double":
             {
@@ -1002,8 +1003,7 @@ public class Compiler extends cBaseVisitor<String>
         String precedentType = getPrecedentTypeString(lhsType[lhsType.length-1], rhsType[rhsType.length-1], this.ctx.getCurrentFunction().getId(), lReg, this.ctx.getTopReg());
 
         String op = ctx.op.getText();
-        boolean isLT = (precedentType == lhsType[lhsType.length -1]);
-        System.out.printf("prec: %s, lhstype: %s, areEq: %b, notisLt: %b \n", precedentType, lhsType[lhsType.length-1], rhsType[rhsType.length-1], precedentType == lhsType[lhsType.length -1], !(precedentType == lhsType[lhsType.length -1]));
+        if (verbose) System.out.printf("precedentType: %s, lhstype: %s, areEqual: %b\n", precedentType, lhsType[lhsType.length-1], rhsType[rhsType.length-1], (precedentType.equals(lhsType[lhsType.length -1])));
         
         switch (op) 
         {
