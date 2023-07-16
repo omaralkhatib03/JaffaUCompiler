@@ -560,6 +560,11 @@ public class Context
         return this.registerStack.peek().equals(reg);
     }
 
+    public void pushRegisterStack(String reg)
+    {
+        this.registerStack.push(reg);
+    }
+
 
     // public void replaceRegOnStack()
     // {

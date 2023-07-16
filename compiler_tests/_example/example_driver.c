@@ -1,7 +1,8 @@
 
-float f(float x, int n);
+int bsqrt(int lo, int hi, int v);
 
 int main()
 {
-    return !(f(5.0f,3)==125.0f);
+    int x;
+    return !(bsqrt(1,1000,64)==8);
 }
