@@ -49,20 +49,20 @@ The only requirments are:
 - [x] variables of `int` type
 - [x] local variables
 - [x] arithmetic and logical expressions
-- if-then-else statements
-- while loops
+- [x] if-then-else statements
+- [x] while loops
 - files containing multiple functions that call each other
 - [x] functions that take up to four parameters
-- for loops
+- [x] for loops
 - arrays declared globally (i.e. outside of any function in your file)
 - arrays declared locally (i.e. inside a function)
 - reading and writing elements of an array
 - recursive function calls
 - the `enum` keyword
 - `switch` statements
-- the `break` and `continue` keywords
+- [x] the `break` and `continue` keywords
 - [x] variables of `double`, `float`, `char`, `unsigned`, structs, and pointer types
-- calling externally-defined functions (i.e. the file being compiled declares a function, but its definition is provided in a different file that is linked in later on)
+- [x] calling externally-defined functions (i.e. the file being compiled declares a function, but its definition is provided in a different file that is linked in later on)
 - functions that take more than four parameters
 - mutually recursive function calls
 - [x] locally scoped variable declarations (e.g. a variable that is declared inside the body of a while loop, such as `while(...) { int x = ...; ... }`.)
