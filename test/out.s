@@ -16,7 +16,7 @@ li t1, 1
 add t0, t0, t1
 addi t1, s0, -24
 lw t1, 0(t1)
-slt t0, t1, t0
+slt t0, t0, t1
 andi t0, t0, 255
 beq t0, zero, _ENDWHILE_3
 addi t1, s0, -20
@@ -37,7 +37,7 @@ addi t1, s0, -36
 lw t1, 0(t1)
 addi t2, s0, -28
 lw t2, 0(t2)
-slt t1, t2, t1
+sgt t1, t1, t2
 xori t1, t1, 1
 andi t1, t1, 255
 beq t1, zero, _ELSE_6
@@ -61,7 +61,7 @@ lw t1, 0(t1)
 mul t0, t0, t1
 addi t1, s0, -28
 lw t1, 0(t1)
-slt t0, t1, t0
+slt t0, t0, t1
 andi t0, t0, 255
 beq t0, zero, _ELSE_10
 addi t1, s0, -24

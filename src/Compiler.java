@@ -1,13 +1,3 @@
-import context.*;
-import grammar.*;
-import grammar.cLexer;
-import grammar.cParser;
-import symbols.CommonSymbol;
-import symbols.Function;
-import symbols.Pointer;
-import symbols.Struct;
-import symbols.Variable;
-
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
@@ -16,8 +6,21 @@ import java.util.Map;
 
 import javax.management.RuntimeErrorException;
 
-import org.antlr.v4.runtime.*;
-import org.antlr.v4.runtime.tree.*;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.TerminalNode;
+
+import context.Context;
+import grammar.cBaseVisitor;
+import grammar.cLexer;
+import grammar.cParser;
+import symbols.CommonSymbol;
+import symbols.Function;
+import symbols.Pointer;
+import symbols.Struct;
+import symbols.Variable;
 
 
 enum instructionType
@@ -1120,14 +1123,13 @@ public class Compiler extends cBaseVisitor<String>
         unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), lType);
         String lReg = this.ctx.getTopReg();
         String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
-        instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (lhsType[lhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
+        instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (rhsType[rhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
         unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
         lType = getPrecedentType(lType, rType);
-        
+        if (lType == instructionType.FLOAT || lType == instructionType.DOUBLE)
+            throw new RuntimeException("Error: Cannot perform bitwise and on float or double");
         writeAnd(lReg, this.ctx.getTopReg(), lType);
-        
         this.ctx.clearTopOfStack();
-
         return "Anded " + String.join(" ", lhsType);
     }
 
@@ -1147,9 +1149,11 @@ public class Compiler extends cBaseVisitor<String>
         unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), lType);
         String lReg = this.ctx.getTopReg();
         String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
-        instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (lhsType[lhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
+        instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (rhsType[rhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
         unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
         lType = getPrecedentType(lType, rType);
+        if (lType == instructionType.FLOAT || lType == instructionType.DOUBLE)
+            throw new RuntimeException("Error: Cannot perform bitwise and on float or double");
 
         writeXor(lReg, this.ctx.getTopReg(), lType);
 
@@ -1168,24 +1172,83 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
+        
         String[] lhsType = visit(ctx.lhs).split("\\s+");
         instructionType lType = (lhsType[lhsType.length-1].equals("double")) ? instructionType.DOUBLE : (lhsType[lhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
         unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), lType);
         String lReg = this.ctx.getTopReg();
+
         String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
-        instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (lhsType[lhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
+        instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (rhsType[rhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
         unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
         lType = getPrecedentType(lType, rType);
-
+        if (lType == instructionType.FLOAT || lType == instructionType.DOUBLE)
+            throw new RuntimeException("Error: Cannot perform bitwise and on float or double");
+        
         writeOr(lReg, this.ctx.getTopReg(), rType);
 
         this.ctx.clearTopOfStack();
 
         return "Ored " + String.join(" ", lhsType);
     }
-
-    private void writeLogicalAnd(String rega, String regb, instructionType opType)
+    
+    private void writeLogicalUnload(String reg, instructionType opType)
     {
+        switch (opType) {
+            case DOUBLE:
+            {
+                /* After putting tmpFreg on our stackl looks liek this
+                 *  -> tmpFreg
+                 *     reg (freg)
+                 */   
+                String tmpFreg = this.ctx.getReg("t", "double", true); 
+                if (tmpFreg == null)
+                    tmpFreg = this.ctx.getReg("a", "double", false);
+                if (tmpFreg == null)
+                    tmpFreg = this.ctx.getReg("s", "double", false);
+                
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeCvtsInstruction("fcvt.d.w", tmpFreg, "x0") + "\n");
+                writeEq(reg, tmpFreg, "double", false); 
+                /* writeEq performs a register swap since it writes into an integer register: Stack looks like this
+                 *  -> tmpFreg (freg)
+                 *     resultInt Reg (reg)
+                 * So we remove the tmp freg to return the register stack to its original state where only reg was on
+                 */
+
+                this.ctx.clearTopOfStack();
+            }
+            break;
+            case FLOAT:
+            {
+                /* After putting tmpFreg on our stack looks liek this
+                 *  -> tmpFreg
+                 *     Lreg (freg)  
+                 */   
+                String tmpFreg = this.ctx.getReg("t", "float", true); 
+                if (tmpFreg == null)
+                    tmpFreg = this.ctx.getReg("a", "float", false);
+                if (tmpFreg == null)
+                    tmpFreg = this.ctx.getReg("s", "float", false);
+                
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeCvtsInstruction("fmv.w.x", tmpFreg, "zero") + "\n");
+                writeEq(reg, tmpFreg, "float", false); 
+                /* writeEq performs a register swap since it writes into an integer register: Stack looks like this
+                 *  -> tmpFreg (freg)
+                 *     resultInt Reg (reg)
+                 */
+                this.ctx.clearTopOfStack();
+            }
+            break;  
+            default:
+            {
+
+            }
+            break;
+        }
+    }
+
+    private void writeLogicalAnd(String rega, String regb)
+    {   
         String funcId = this.ctx.getCurrentFunction().getId();
         String labelOne = this.ctx.makeUnqiueLabel("AND"); //
         String labelTwo = this.ctx.makeUnqiueLabel("AND"); //
@@ -1197,29 +1260,35 @@ public class Compiler extends cBaseVisitor<String>
         this.ctx.writeBodyString(funcId, writeLiInstruction(rega, "0") + "\n");
         this.ctx.writeBodyString(funcId, labelTwo + ":\n");
     }
-
+    
     @Override
     public String visitLogicalAndExpression(cParser.LogicalAndExpressionContext ctx)
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
+        
         String[] lhsType = visit(ctx.lhs).split("\\s+");
         instructionType lType = (lhsType[lhsType.length-1].equals("double")) ? instructionType.DOUBLE : (lhsType[lhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
         unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), lType);
+        if (lhsType[lhsType.length - 1].equals("double") || lhsType[lhsType.length - 1].equals("float"))
+            writeLogicalUnload(this.ctx.getTopReg(), lType);
+        
         String lReg = this.ctx.getTopReg();
-        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
-        instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (lhsType[lhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
-        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
-        lType = getPrecedentType(lType, rType);
 
-        writeLogicalAnd(lReg, this.ctx.getTopReg(), lType);
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (rhsType[rhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
+        if (rhsType[rhsType.length - 1].equals("double") || rhsType[rhsType.length - 1].equals("float"))
+            writeLogicalUnload(this.ctx.getTopReg(), rType);
+
+        writeLogicalAnd(lReg, this.ctx.getTopReg());
 
         this.ctx.clearTopOfStack();
-
+        lhsType[lhsType.length-1] = (lhsType[lhsType.length-1].equals("float") || lhsType[lhsType.length-1].equals("double")) ? "int" : lhsType[lhsType.length-1]; // change the type of the lhs to the precedent type
         return "LogicalAnded " + String.join(" ", lhsType);
     }
 
-    private void writeLogicalOr(String rega, String regb, instructionType opType)
+    private void writeLogicalOr(String rega, String regb)
     {
         String funcId = this.ctx.getCurrentFunction().getId();
         String labelOne = this.ctx.makeUnqiueLabel("OR"); //
@@ -1238,17 +1307,26 @@ public class Compiler extends cBaseVisitor<String>
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
+        
         String[] lhsType = visit(ctx.lhs).split("\\s+");
         instructionType lType = (lhsType[lhsType.length-1].equals("double")) ? instructionType.DOUBLE : (lhsType[lhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
         unloadCheckpoint(lhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), lType);
+        if (lhsType[lhsType.length - 1].equals("double") || lhsType[lhsType.length - 1].equals("float"))
+            writeLogicalUnload(this.ctx.getTopReg(), lType);
+        
         String lReg = this.ctx.getTopReg();
-        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
-        instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (lhsType[lhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
-        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
-        lType = getPrecedentType(lType, rType);
-        writeLogicalOr(lReg, this.ctx.getTopReg(), lType);
-        this.ctx.clearTopOfStack();
 
+        String[] rhsType = visit(ctx.rhs).split("\\s+"); // returns rtype
+        instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (rhsType[rhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
+        unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
+        if (rhsType[rhsType.length - 1].equals("double") || rhsType[rhsType.length - 1].equals("float"))
+            writeLogicalUnload(this.ctx.getTopReg(), rType);
+        
+        writeLogicalOr(lReg, this.ctx.getTopReg());
+
+        this.ctx.clearTopOfStack();
+        lhsType[lhsType.length-1] = (lhsType[lhsType.length-1].equals("float") || lhsType[lhsType.length-1].equals("double")) ? "int" : lhsType[lhsType.length-1]; // change the type of the lhs to the precedent type
+        
         return "LogicalOred " + String.join(" ", lhsType);
     }
 
@@ -1282,7 +1360,7 @@ public class Compiler extends cBaseVisitor<String>
             break;
             default: // char, unsigned by default
             {
-                // TODO: implement char and unsigned
+
             }
             break;
         }
@@ -1898,17 +1976,17 @@ public class Compiler extends cBaseVisitor<String>
                 }
                 return String.format("%s", writeSwLwInstruction("s", reg, String.valueOf(var.getOffset()), "s0", instructionType.DOUBLE)); // change s0 to sp when implementing stack all regs are full
             }
-            case "char":
-            {
-                // TODO: implement char parameter write
-            }
-            break;
-            case "unsigned":
-            {
-                // TODO: implement unsigned parameter write
-            }
-            break;
-            default: // int default
+            // case "char": // TODO: CHECK THIS WITH THE CALLIGN CONVENTION AND ABI, I THINK IT SHOULD BE FINE
+            // {
+            //     // TODO: implement char parameter write
+            // }
+            // break;
+            // case "unsigned":
+            // {
+            //     // TODO: implement unsigned parameter write
+            // }
+            // break;
+            default: // int, char, unsigned default
             {
                 String reg = this.ctx.getReg("a", var.getType(), false); // dont put on stack
                 
@@ -1923,7 +2001,6 @@ public class Compiler extends cBaseVisitor<String>
             }
             // break; 
         }
-        return "";
     }
 
     private String writeParameters(ArrayList<CommonSymbol> params)
@@ -2039,21 +2116,21 @@ public class Compiler extends cBaseVisitor<String>
         if ((inputType.equals("char") || inputType.equals("unsigned"))  && (targetType.equals("float") || targetType.equals("double")))
         {
             replacedReg = getReplacementReg(reg, targetType);
-            this.ctx.writeBodyString(funcId, writeCvtsInstruction("fcvt."+ (inputType.equals("double") ? "d" : "s") +".wu", replacedReg, reg) + "\n");
+            this.ctx.writeBodyString(funcId, writeCvtsInstruction("fcvt."+ (targetType.equals("double") ? "d" : "s") +".wu", replacedReg, reg) + "\n");
         }
         else if (inputType.equals("int") && (targetType.equals("float") || targetType.equals("double")))
         {
             replacedReg = getReplacementReg(reg, targetType);
-            this.ctx.writeBodyString(funcId, writeCvtsInstruction("fcvt."+ (inputType.equals("double") ? "d" : "s") +".w", replacedReg, reg) + "\n");
+            this.ctx.writeBodyString(funcId, writeCvtsInstruction("fcvt."+ (targetType.equals("double") ? "d" : "s") +".w", replacedReg, reg) + "\n");
         }
         else if ((inputType.equals("float") || inputType.equals("double")) && (targetType.equals("char") || targetType.equals("unsigned")))
         {
             replacedReg = getReplacementReg(reg, targetType);
-            this.ctx.writeBodyString(funcId, writeCvtsRTZInstruction("fcvt.wu."+ (inputType.equals("double") ? "d" : "s"), replacedReg, reg) + "\n");
+            this.ctx.writeBodyString(funcId, writeCvtsRTZInstruction("fcvt.wu."+ (targetType.equals("double") ? "d" : "s"), replacedReg, reg) + "\n");
         }
         else if ((inputType.equals("float") || inputType.equals("double")) && targetType.equals("int"))
         {
-            this.ctx.writeBodyString(funcId, writeCvtsRTZInstruction("fcvt.w."+ (inputType.equals("double") ? "d" : "s"), replacedReg, reg) + "\n");
+            this.ctx.writeBodyString(funcId, writeCvtsRTZInstruction("fcvt.w."+ (targetType.equals("double") ? "d" : "s"), replacedReg, reg) + "\n");
         }
         else if (inputType.equals("float") && targetType.equals("double"))
         {
