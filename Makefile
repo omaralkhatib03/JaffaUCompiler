@@ -25,6 +25,7 @@ clean:
 	rm -rf src/grammar/*.class
 	rm -rf src/*.class
 	rm -rf bin/*
+	rm -rf test/*
 
 forceClean:
 	sudo rm -rf src/grammar/*.java
@@ -33,3 +34,4 @@ forceClean:
 	sudo rm -rf src/grammar/*.class
 	sudo rm -rf src/*.class
 	sudo rm -rf bin/*
+	sudo rm -rf test/*
