@@ -1,4 +1,4 @@
-int f(double a, int b);
+int f(float a, int b);
 
 int main()
 {

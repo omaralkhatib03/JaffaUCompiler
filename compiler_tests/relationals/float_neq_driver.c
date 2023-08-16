@@ -1,10 +1,4 @@
-// double foo(double x, unsigned y)
-// {
-    // return x!=y;
-// }
-
-double foo(double x, unsigned y);
-
+float foo(float x, unsigned y);
 
 int main()
 {
