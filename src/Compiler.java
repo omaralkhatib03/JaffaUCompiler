@@ -80,7 +80,7 @@ public class Compiler extends cBaseVisitor<String>
             break;
             case "double":
             {
-                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("sw", reg, String.valueOf(symbol.getOffset()), "s0", instructionType.DOUBLE) + "\n");
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSwLwInstruction("s", reg, String.valueOf(symbol.getOffset()), "s0", instructionType.DOUBLE) + "\n");
             }
             break;
             case "float":
@@ -106,8 +106,16 @@ public class Compiler extends cBaseVisitor<String>
     {
         CommonSymbol symbol = this.ctx.getFrontOfInitQueue();
         // String reg = this.ctx.getReg("t", symbol.getType(), true);
-        visit(ctx.assignmentExpression()); // compile into the register
+        String []rType = visit(ctx.assignmentExpression()).split("\\s+"); // compile into the register
+        
+        System.out.print("################################  INITIALIZER  ################################\n");
+        System.out.printf("rType: %s, symbolType: %s\n", rType[rType.length-1], symbol.getType());
+        System.out.print("################################  END INITIALIZER  ############################\n");
+
+        if (!rType[rType.length-1].equals(symbol.getType()))
+            castType(this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), symbol.getType(), rType[rType.length-1]); // cast the expression to the correct type
         storeSymbol(symbol, this.ctx.getTopReg());
+        
         this.ctx.clearTopOfStack();
         return "";
     }
@@ -145,9 +153,9 @@ public class Compiler extends cBaseVisitor<String>
             // TODO: handle global variables
             return null;
         }
-        Variable var = new Variable(id, type, this.ctx.getCurrentFunction().getCurrentOffset(), isGlobal); // create variable
-        this.ctx.getCurrentFunction().decrementSymbolOffset(typeSizeMap.get(type)); // decrement offset by size of variable
+        // this.ctx.getCurrentFunction().decrementSymbolOffset(typeSizeMap.get(type)); // decrement offset by size of variable
         this.ctx.allocateMemory(typeSizeMap.get(type), this.ctx.getCurrentFunction().getId());
+        Variable var = new Variable(id, type, this.ctx.getCurrentFunction().getCurrentOffset(), isGlobal); // create variable
         if (verbose) System.out.printf("Creating Variable: %s, type: %s offset: %d \n", var.getId(), var.getType(), var.getOffset());
             
         if (addToQueue)
@@ -251,9 +259,9 @@ public class Compiler extends cBaseVisitor<String>
             throw new RuntimeException("Error: Cannot find id");
         
         // only variables can be allocates this way, no need to insert a switch statement here
-        Variable symbol = new Variable(id, this.ctx.getDeclarationMode(), this.ctx.getCurrentFunction().getCurrentOffset(), this.ctx.isGlobalScope()); // create variable
-        this.ctx.getCurrentFunction().decrementSymbolOffset(typeSizeMap.get(this.ctx.getDeclarationMode())); // decrement offset by size of variable
+        // this.ctx.getCurrentFunction().decrementSymbolOffset(typeSizeMap.get(this.ctx.getDeclarationMode())); // decrement offset by size of variable
         this.ctx.allocateMemory(typeSizeMap.get(this.ctx.getDeclarationMode()), this.ctx.getCurrentFunction().getId());
+        Variable symbol = new Variable(id, this.ctx.getDeclarationMode(), this.ctx.getCurrentFunction().getCurrentOffset(), this.ctx.isGlobalScope()); // create variable
         if (verbose) System.out.printf("Creating Variable: %s, type: %s offset: %d \n", symbol.getId(), symbol.getType(), symbol.getOffset());
         if (this.ctx.isGlobalScope())
         {
@@ -537,11 +545,11 @@ public class Compiler extends cBaseVisitor<String>
             this.ctx.bodyStringsMap.put(currFunction.getId(), currFunctionBody + writeLiInstruction(reg, constant) + "\n");
         
         }
-        else if (constant.matches(doubleRegex))
-        {
-            type = "constant double"; // treat decimals as double by default 
-            // TODO: implement double/float constant
-        }
+        // else if (constant.matches(doubleRegex))
+        // {
+        //     type = "constant double"; // treat decimals as double by default 
+        //     // TODO: implement double/float constant
+        // }
         else if (constant.matches(floatRegex))
         {
             type = "constant float";
@@ -688,19 +696,34 @@ public class Compiler extends cBaseVisitor<String>
             out = "int";
         else
             out = "char";
-        
-        if (leftType != out) // DANGEROUS OPERATION HERE, SWITCHIGN REGISTERS ON STACK
-        {
-            String tmpReg = this.ctx.popRegisterStack(); // take right register off the stack
-            castType(funcId, lreg, out, leftType); // cast left
-            this.ctx.pushRegisterStack(tmpReg); // put right register back on the stack
-        }
-        else if (rightType != out)
-            castType(funcId, rreg, out, rightType);// cast right
-        
+
         return out;
     }
 
+    // DANGEROUS OPERATION HERE, SWITCHING REGISTERS ON STACK
+    /*
+     * This function determines whether a cast is neccessary based on the type precedence.
+     * If a cast is neccessary, it will cast the type of the register at the top of the stack.
+     * and return the new register which has been casted.
+     * This function should be used with care as it could replace the left register which is not at the top of the reg stack.
+     * When this does occur its the job of the calling function to pick of the new left register and discard the old one.
+     */
+    private String[] precedentTypeCast(String precedentType, String leftType, String rightType, String funcId)
+    {
+        if (leftType != precedentType) 
+        {
+            String tmpReg = this.ctx.popRegisterStack(); // take right register off the stack
+            castType(funcId, this.ctx.getTopReg(), precedentType, leftType); // cast left
+            String newLreg = this.ctx.getTopReg(); // get new left register
+            this.ctx.pushRegisterStack(tmpReg); // put right register back on the stack
+            String[] arr = {"l", newLreg};
+            return arr;
+        }
+        else if (rightType != precedentType)
+            castType(funcId, this.ctx.getTopReg(), precedentType, rightType);// cast right
+        String[] arr = {"r" ,this.ctx.getTopReg()};
+        return arr;
+    }
 
 
     // TODO: implement types for expressions, ltype and rtype are avialable at each expression node, figure out logic
@@ -768,6 +791,9 @@ public class Compiler extends cBaseVisitor<String>
         instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (rhsType[rhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
         unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
         String precedentType = getPrecedentTypeString(lhsType[lhsType.length-1], rhsType[rhsType.length-1], this.ctx.getCurrentFunction().getId(), lReg, this.ctx.getTopReg());
+        String[] newRegs = precedentTypeCast(precedentType, lhsType[lhsType.length-1], rhsType[rhsType.length-1], this.ctx.getCurrentFunction().getId());
+        lReg = (newRegs[0].equals("l")) ? newRegs[1] : lReg;
+
         String op = ctx.op.getText();
 
         switch (op) 
@@ -851,6 +877,8 @@ public class Compiler extends cBaseVisitor<String>
         instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (rhsType[rhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
         unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
         String precedentType = getPrecedentTypeString(lhsType[lhsType.length-1], rhsType[rhsType.length-1], this.ctx.getCurrentFunction().getId(), lReg, this.ctx.getTopReg());
+        String[] newRegs = precedentTypeCast(precedentType, lhsType[lhsType.length-1], rhsType[rhsType.length-1], this.ctx.getCurrentFunction().getId());
+        lReg = (newRegs[0].equals("l")) ? newRegs[1] : lReg;
 
         String op = ctx.op.getText();
         switch (op) 
@@ -1025,8 +1053,7 @@ public class Compiler extends cBaseVisitor<String>
         }
             this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeImmediateInstruction("andi", rega, rega, 0xff, instructionType.INT) + "\n");
     }
-
-
+    
     @Override
     public String visitRelationalExpression(cParser.RelationalExpressionContext ctx)
     {
@@ -1041,10 +1068,13 @@ public class Compiler extends cBaseVisitor<String>
         instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (rhsType[rhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
         unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
         String precedentType = getPrecedentTypeString(lhsType[lhsType.length-1], rhsType[rhsType.length-1], this.ctx.getCurrentFunction().getId(), lReg, this.ctx.getTopReg());
+        String[] newRegs = precedentTypeCast(precedentType, lhsType[lhsType.length-1], rhsType[rhsType.length-1], this.ctx.getCurrentFunction().getId());
+        lReg = (newRegs[0].equals("l")) ? newRegs[1] : lReg;
+        
 
         String op = ctx.op.getText();
         if (verbose) System.out.printf("precedentType: %s, lhstype: %s, areEqual: %b\n", precedentType, lhsType[lhsType.length-1], rhsType[rhsType.length-1], (precedentType.equals(lhsType[lhsType.length -1])));
-        
+
         switch (op) 
         {
             case "<": writeLGT(lReg, this.ctx.getTopReg(), precedentType, (precedentType.equals(lhsType[lhsType.length -1]))); break;
@@ -1101,6 +1131,8 @@ public class Compiler extends cBaseVisitor<String>
         instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (rhsType[rhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
         unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), this.ctx.getTopReg(), rType);
         String precedentType = getPrecedentTypeString(lhsType[lhsType.length-1], rhsType[rhsType.length-1], this.ctx.getCurrentFunction().getId(), lReg, this.ctx.getTopReg());
+        String[] newRegs = precedentTypeCast(precedentType, lhsType[lhsType.length-1], rhsType[rhsType.length-1], this.ctx.getCurrentFunction().getId());
+        lReg = (newRegs[0].equals("l")) ? newRegs[1] : lReg;        
         String op = ctx.op.getText();
         writeEq(lReg, this.ctx.getTopReg(), precedentType, op.equals("=="));
         this.ctx.clearTopOfStack();

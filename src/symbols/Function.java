@@ -15,7 +15,7 @@ public class Function extends Scope
     {
         super(id, type, isGlobal);
         this.returningContext = false; // when a function is declared, it cannot return
-        this.currentSymbolOffset = -20; // the first allowed variable is offset by -20 from s0 initially (always i think)
+        this.currentSymbolOffset = -16; // the first allowed variable is offset by -20 from s0 initially (always i think)
         this.freeBytes = 0; // ra: (12 -> 16), s0: (16 -> 20) 
         this.stackSize = 16;  
         this.symbolTable = new HashMap<String, CommonSymbol>();
