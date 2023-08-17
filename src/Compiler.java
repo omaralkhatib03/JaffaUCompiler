@@ -985,7 +985,6 @@ public class Compiler extends cBaseVisitor<String>
     private void writeLGT(String rega, String regb, String precType, boolean isLT)
     {
         String lg = (isLT) ? "l" : "g";
-        if (verbose) System.out.printf("lg Boolean: %b, choosing ( l or g ): %s\n", isLT, lg);
         switch (precType) {
             case "double":
             {
@@ -1020,12 +1019,13 @@ public class Compiler extends cBaseVisitor<String>
     private void writeLGTEq(String rega, String regb, String precType, boolean isLT)
     {
         String lg = (isLT) ? "l" : "g";
-        if (verbose) System.out.printf("lg Boolean: %b, choosing ( l or g ): %s\n", isLT, lg);
+        String lgFD = (!isLT) ? "l" : "g";
+        
         switch (precType) {
             case "double":
             {
                 String dstReg = equalityRelationSwap(rega, regb);
-                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("f"+lg+"e.d", dstReg, rega, regb, instructionType.DOUBLE) + "\n");
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("f"+lgFD+"e.d", dstReg, rega, regb, instructionType.DOUBLE) + "\n");
                 rega = dstReg;
                 this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSeqzInstruction("snez", dstReg, dstReg) + "\n");
             }
@@ -1033,7 +1033,7 @@ public class Compiler extends cBaseVisitor<String>
             case "float":
             {
                 String dstReg = equalityRelationSwap(rega, regb);
-                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("f"+lg+"e.s", dstReg, rega, regb, instructionType.FLOAT) + "\n");
+                this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("f"+lgFD+"e.s", dstReg, rega, regb, instructionType.FLOAT) + "\n");
                 rega = dstReg;
                 this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeSeqzInstruction("snez", dstReg, dstReg) + "\n");
             }
@@ -1044,7 +1044,7 @@ public class Compiler extends cBaseVisitor<String>
                 this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeImmediateInstruction("xori", rega, rega, 1, instructionType.INT) + "\n");
             }
             break;
-            default: // int default 
+            default: // unsigned, char default 
             {
                 this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeRegInstruction("s"+lg+"tu", rega, rega, regb, instructionType.INT) + "\n");
                 this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeImmediateInstruction("xori", rega, rega, 1, instructionType.INT) + "\n");
@@ -1077,10 +1077,10 @@ public class Compiler extends cBaseVisitor<String>
 
         switch (op) 
         {
-            case "<": writeLGT(lReg, this.ctx.getTopReg(), precedentType, (precedentType.equals(lhsType[lhsType.length -1]))); break;
-            case ">": writeLGT(lReg, this.ctx.getTopReg(), precedentType, !(precedentType.equals(lhsType[lhsType.length -1]))); break;
-            case "<=": writeLGTEq(lReg, this.ctx.getTopReg(), precedentType, !(precedentType.equals(lhsType[lhsType.length -1]))); break;
-            case ">=": writeLGTEq(lReg, this.ctx.getTopReg(), precedentType, (precedentType.equals(lhsType[lhsType.length -1]))); break;
+            case "<": writeLGT(lReg, this.ctx.getTopReg(), precedentType, true); break;
+            case ">": writeLGT(lReg, this.ctx.getTopReg(), precedentType, false); break;
+            case "<=": writeLGTEq(lReg, this.ctx.getTopReg(), precedentType, false); break;
+            case ">=": writeLGTEq(lReg, this.ctx.getTopReg(), precedentType, true); break;
         }
 
         this.ctx.clearTopOfStack();
