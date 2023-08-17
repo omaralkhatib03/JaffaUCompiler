@@ -1430,6 +1430,7 @@ public class Compiler extends cBaseVisitor<String>
         if (lhsType[lhsType.length - 1] != rhsType[rhsType.length - 1])
             castType(funcId, rhsReg, lhsType[lhsType.length - 1], rhsType[rhsType.length - 1]); // now RHSreg is top of the stack
 
+        rhsReg = this.ctx.getTopReg(); // update rhsReg to the new register on the top of the stack if it was changed
         // once the type is casted correctly, we can put lreg back on the stack
         this.ctx.pushRegisterStack(lreg); // push the lhs register back onto the stack
 
@@ -1791,36 +1792,83 @@ public class Compiler extends cBaseVisitor<String>
         switch (type) {
             case "float":
             {
-                // TODO: implement float IncDec postfix expression
+                // make a label and unload the '1' value from the heap
+                String incDecLabel = this.ctx.makeUnqiueLabel("INCDEC");
+                this.heapString += String.format("%s: .word %d\n",incDecLabel, Float.floatToIntBits( (float) incDec));
+                String incDecReg = this.ctx.getReg("t", "int", false);
+                incDecReg = (incDecReg  == null) ? this.ctx.getReg("a", "int", false) : incDecReg;
+                incDecReg = (incDecReg  == null) ? this.ctx.getReg("s", "int", false) : incDecReg; // Kinda illegal but were gna store s regs                 
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lui", incDecReg, "%hi", incDecLabel, instructionType.INT) + "\n");
+                writeAddition(incDecReg, "%lo(" + incDecLabel + ")", "int");
+
+                // get a tmp register to store the 1 value in it
+                String tmpReg = this.ctx.getReg("t", type, false); // at the top of stack and put them back when we implement recursion
+                tmpReg = (tmpReg  == null) ? this.ctx.getReg("a", type, false) : tmpReg;
+                tmpReg = (tmpReg  == null) ? this.ctx.getReg("s", type, false) : tmpReg; // Kinda illegal but were gna store s regs
+
+                // write the actual addition and clear the tmp register which had the 1 in it
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lw", tmpReg, "0", incDecReg, instructionType.FLOAT) + "\n");
+                writeAddition(tmpReg, this.ctx.getTopReg(), "float");
+
+                visit(ctx.primaryExpression()); // get the location agian
+
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("s", tmpReg, "0", this.ctx.getTopReg(), instructionType.FLOAT) + "\n");
+                this.ctx.clearTopOfStack(); // clears the pointer to the location
+                this.ctx.clearReg(incDecReg); // clears the pointer to the location
+                this.ctx.clearReg(tmpReg); // clears the tmp register
+                
+                return "incDec " + type;          
             }
-            break;
             case "double":
             {
-                // TODO: TODO: implement double IncDec postfix expression
+
+                // make a label and unload the '1' value from the heap
+                String incDecLabel = this.ctx.makeUnqiueLabel("INCDEC");
+                this.heapString += String.format("%s: .word %d\n",incDecLabel, Float.floatToIntBits( (float) incDec));
+                String incDecReg = this.ctx.getReg("t", "int", false);
+                incDecReg = (incDecReg  == null) ? this.ctx.getReg("a", "int", false) : incDecReg;
+                incDecReg = (incDecReg  == null) ? this.ctx.getReg("s", "int", false) : incDecReg; // Kinda illegal but were gna store s regs                 
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("lui", incDecReg, "%hi", incDecLabel, instructionType.INT) + "\n");
+                writeAddition(incDecReg, "%lo(" + incDecLabel + ")", "int");
+
+                // get a tmp register to store the 1 value in it
+                String tmpReg = this.ctx.getReg("t", type, false);                                            // at the top of stack and put them back when we implement recursion
+                tmpReg = (tmpReg  == null) ? this.ctx.getReg("a", type, false) : tmpReg;
+                tmpReg = (tmpReg  == null) ? this.ctx.getReg("s", type, false) : tmpReg; // Kinda illegal but were gna store s regs
+
+                // write the actual addition and clear the tmp register which had the 1 in it
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("l", tmpReg, "0", incDecReg, instructionType.DOUBLE) + "\n");
+                writeAddition(tmpReg, this.ctx.getTopReg(), "double");
+
+                visit(ctx.primaryExpression()); // get the location agian
+
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("s", tmpReg, "0", this.ctx.getTopReg(), instructionType.DOUBLE) + "\n");
+                this.ctx.clearTopOfStack(); // clears the pointer to the location
+                this.ctx.clearReg(incDecReg); // clears the pointer to the location
+                this.ctx.clearReg(tmpReg); // clears the tmp register
+                
+                return "incDec " + type;
+
             }
-            break;
-            // case "unsigned": // should be fine, but check this again, dont mess me over TODO: check this again
-            // {
-            //     // TODO: implement unsigned IncDec postfix expression
-            // }
-            // break;
-            // case "char":
-            // {
-            //     // TODO: implement char unsigned IncDec postfix expression
-            // }
-            // break;
             default: // default int, char, unsigned; 
             {
-                this.ctx.writeBodyString(funcId, writeImmediateInstruction("addi", this.ctx.getTopReg(), this.ctx.getTopReg(), incDec, instructionType.INT) + "\n");
-                String tmpReg = this.ctx.getTopReg();
+                // get a tmp register to store the addition into it
+                String tmpReg = this.ctx.getReg("t", type, false);                                            // at the top of stack and put them back when we implement recursion
+                tmpReg = (tmpReg  == null) ? this.ctx.getReg("a", type, false) : tmpReg;
+                tmpReg = (tmpReg  == null) ? this.ctx.getReg("s", type, false) : tmpReg; // Kinda illegal but were gna store s regs
+
+                // perform the addition
+                this.ctx.writeBodyString(funcId, writeImmediateInstruction("addi", tmpReg, this.ctx.getTopReg(), incDec, instructionType.INT) + "\n");
+
                 visit(ctx.primaryExpression()); // get the location agian
+                
                 this.ctx.writeBodyString(funcId, writeSwLwInstruction("sw", tmpReg, "0", this.ctx.getTopReg(), instructionType.INT) + "\n");
                 this.ctx.clearTopOfStack(); // clears the pointer to the location
+                this.ctx.clearReg(tmpReg); // clears the tmp register
                 return "incDec " + type;
             }
         }
 
-        return "";
     }
 
     @Override
@@ -1851,7 +1899,7 @@ public class Compiler extends cBaseVisitor<String>
             unloadCheckpoint(primaryExprType, funcId, this.ctx.getTopReg(), type);
             return writeIncDecPostfixExpression(ctx, primaryExprType[primaryExprType.length-1], funcId, (ctx.incOp != null) ? 1 : -1); // value loaded
         }
-        else // function calls by def
+        else // function calls by default
         {
             if (ctx.argumentExpressionList().toArray().length == 0)
             {
@@ -1864,12 +1912,14 @@ public class Compiler extends cBaseVisitor<String>
                 {
                     case "float":
                     {
-                        // TODO: implement float function call No args
+                        this.ctx.getReg("t", type, true); // put the return value in a register
+                        this.ctx.writeBodyString(funcId, writeMvInstruction(this.ctx.getTopReg(), "fa0", instructionType.FLOAT) + "\n"); // move the data out of a0 and return
                     }
                     break;
                     case "double":
                     {
-                        // TODO: implement double function call No args
+                        this.ctx.getReg("t", type, true); // put the return value in a register
+                        this.ctx.writeBodyString(funcId, writeMvInstruction(this.ctx.getTopReg(), "fa0", instructionType.DOUBLE) + "\n"); // move the data out of a0 and return
                     }
                     break;
                     // case "unsigned": // not 100% sure about this TODO: check this again
@@ -1899,6 +1949,33 @@ public class Compiler extends cBaseVisitor<String>
 
     ///////////////////////////////////////////////////////////////////////
     //////////////////        PostfixExpressions END    ///////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        UnaryExpressions        /////////////////////
+    ///////////////////////////////////////////////////////////////////////
+
+    // private String writeIncDecUnary(String funcId)
+    // {
+    //     return "";
+    // }
+
+
+    // TODO: implement unaries
+    @Override
+    public String visitUnaryExpression(cParser.UnaryExpressionContext ctx)
+    {
+        if (ctx.getChildCount() == 1)
+            return visit(ctx.getChild(0));
+
+        return "";
+    }
+
+
+    ///////////////////////////////////////////////////////////////////////
+    //////////////////        UnaryExpressions END    /////////////////////
     ///////////////////////////////////////////////////////////////////////
 
 
@@ -2158,11 +2235,12 @@ public class Compiler extends cBaseVisitor<String>
         else if ((inputType.equals("float") || inputType.equals("double")) && (targetType.equals("char") || targetType.equals("unsigned")))
         {
             replacedReg = getReplacementReg(reg, targetType);
-            this.ctx.writeBodyString(funcId, writeCvtsRTZInstruction("fcvt.wu."+ (targetType.equals("double") ? "d" : "s"), replacedReg, reg) + "\n");
+            this.ctx.writeBodyString(funcId, writeCvtsRTZInstruction("fcvt.wu."+ (inputType.equals("double") ? "d" : "s"), replacedReg, reg) + "\n");
         }
         else if ((inputType.equals("float") || inputType.equals("double")) && targetType.equals("int"))
         {
-            this.ctx.writeBodyString(funcId, writeCvtsRTZInstruction("fcvt.w."+ (targetType.equals("double") ? "d" : "s"), replacedReg, reg) + "\n");
+            replacedReg = getReplacementReg(reg, targetType);
+            this.ctx.writeBodyString(funcId, writeCvtsRTZInstruction("fcvt.w."+ (inputType.equals("double") ? "d" : "s"), replacedReg, reg) + "\n");
         }
         else if (inputType.equals("float") && targetType.equals("double"))
         {
@@ -2190,6 +2268,7 @@ public class Compiler extends cBaseVisitor<String>
             assert(reg.equals(this.ctx.getTopReg()));
         } catch (Exception e) {
             System.out.printf("dead reg created: %s, topReg: %s\n", reg, this.ctx.getTopReg());
+            System.exit(1);
         }
 
         if (reg.equals(this.ctx.getTopReg()))
