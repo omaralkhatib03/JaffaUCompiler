@@ -1416,7 +1416,6 @@ public class Compiler extends cBaseVisitor<String>
         instructionType rType = (rhsType[rhsType.length-1].equals("double")) ? instructionType.DOUBLE : (rhsType[rhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
 
         unloadCheckpoint(rhsType, this.ctx.getCurrentFunction().getId(), rhsReg, rType);       
-       
         // now top reg holds a value
         String[] lhsType = visit(ctx.leftHandSide).split("\\s+"); // get the pointer to the left hand side, a new register is put onto the stack
         instructionType lType = (lhsType[lhsType.length-1].equals("double")) ? instructionType.DOUBLE : (lhsType[lhsType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
@@ -1958,22 +1957,99 @@ public class Compiler extends cBaseVisitor<String>
     //////////////////        UnaryExpressions        /////////////////////
     ///////////////////////////////////////////////////////////////////////
 
-    // private String writeIncDecUnary(String funcId)
-    // {
-    //     return "";
-    // }
+    private String writeIncDecUnaryExpression(cParser.UnaryExpressionContext ctx, int incDec)
+    {
+        String funcId = this.ctx.getCurrentFunction().getId();
+        String[] primaryExprType = visit(ctx.postfixExpression()).split("\\s+");
+        instructionType insType = (primaryExprType[primaryExprType.length-1].equals("double")) ? instructionType.DOUBLE : (primaryExprType[primaryExprType.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
+        unloadCheckpoint(primaryExprType, funcId, this.ctx.getTopReg(), insType); // unloaded the value
+
+        switch (insType) {
+            case DOUBLE: // TODO: implement double unary
+            case FLOAT: // TODO: implement float unary
+            default: // int default 
+            {
+
+                this.ctx.writeBodyString(funcId, writeImmediateInstruction("addi", this.ctx.getTopReg(), this.ctx.getTopReg(), incDec, instructionType.INT) + "\n");
+                String tmpReg = this.ctx.getTopReg();
+                this.ctx.clearTopOfStack(); // clears the pointer to the location
+                visit(ctx.postfixExpression()); // get the location agian
+                this.ctx.writeBodyString(funcId, writeSwLwInstruction("sw", tmpReg, "0", this.ctx.getTopReg(), instructionType.INT) + "\n");
+                return "incDec " + primaryExprType[primaryExprType.length-1];
+            }
+        }
+
+    }
+
+    private void writeNeg(cParser.UnaryExpressionContext ctx, String rega, instructionType type)
+    {
+        if (verbose)
+        {
+            System.out.printf("#########################################    Neg    #########################################\n");
+            System.out.printf("Neg : %s\n", ctx.getText());
+            this.ctx.safeRegStackPrint();
+            System.out.printf("#########################################    Neg END   !#####################################\n");
+        }
+        switch(type)
+        {
+            case DOUBLE: this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeNegInstruction("fneg.d", rega, rega) + "\n"); break;
+            case FLOAT: this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeNegInstruction("fneg.s", rega, rega) + "\n"); break;
+            default: this.ctx.writeBodyString(this.ctx.getCurrentFunction().getId(), writeNegInstruction("neg", rega, rega) + "\n"); break;
+        }
+    }
 
 
-    // TODO: implement unaries
     @Override
     public String visitUnaryExpression(cParser.UnaryExpressionContext ctx)
     {
         if (ctx.getChildCount() == 1)
             return visit(ctx.getChild(0));
 
-        return "";
-    }
+        if (ctx.incOp != null)
+        {
+            return writeIncDecUnaryExpression(ctx, 1);
+        } 
+        else if (ctx.decOp != null)
+        {
+            return writeIncDecUnaryExpression(ctx, -1);
+        }
+        else if (ctx.sizeOfOp != null)
+        {
+            // TODO: implement sizeof
+        }
+        String op = ctx.unaryOperator().getText();
 
+        if (op == null)
+            return visit(ctx.getChild(0));
+
+        String funcId = this.ctx.getCurrentFunction().getId();
+        String [] typeArr = visit(ctx.castExpression()).split("\\s+");
+        instructionType type = (typeArr[typeArr.length-1].equals("double")) ? instructionType.DOUBLE : (typeArr[typeArr.length-1].equals("float") ? instructionType.FLOAT : instructionType.INT);
+
+        switch (op) {
+            case "&": break; // TODO: Implement when doing pointers
+            case "*": break; // TODO: Implement when doing pointers
+            case "+": break;
+            case "-": 
+            {
+                unloadCheckpoint(typeArr, funcId, this.ctx.getTopReg(), type);
+                writeNeg(ctx, this.ctx.getTopReg(), type);
+                return "neg " + String.join(" ", typeArr);
+            }
+            case "~": 
+            {
+                if (type == instructionType.DOUBLE || type == instructionType.FLOAT)
+                    throw new RuntimeException("Cannot use ~ on float or double");
+                unloadCheckpoint(typeArr, funcId, this.ctx.getTopReg(), type);
+                this.ctx.writeBodyString(funcId, writeNegInstruction("not", this.ctx.getTopReg(), this.ctx.getTopReg()) + "\n");
+            }
+            break;
+            case "!": break;
+            default: break;
+        }
+
+        return visit(ctx.getChild(0));
+    }
 
     ///////////////////////////////////////////////////////////////////////
     //////////////////        UnaryExpressions END    /////////////////////
@@ -2214,6 +2290,11 @@ public class Compiler extends cBaseVisitor<String>
         return String.format("%s %s, %s", instruction, dstReg, rega);
     }
 
+    private String writeNegInstruction(String instruction, String dstReg, String rega)
+    {
+        return String.format("%s %s, %s", instruction, dstReg, rega);
+    }
+
     private String writeCvtsRTZInstruction(String instruction, String dstReg, String rega)
     {
         return String.format("%s %s, %s, rtz", instruction, dstReg, rega);
@@ -2328,14 +2409,6 @@ public class Compiler extends cBaseVisitor<String>
         }
         return "";
     }
-
-    // private void printStringArr(String[] arr)
-    // {
-    //     for (String i : arr)
-    //         System.out.printf("%s ", i);
-    //     System.out.printf("\n");
-    // }
-
 
 
     /**

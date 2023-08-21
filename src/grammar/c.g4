@@ -26,11 +26,7 @@ argumentExpressionList
 
 unaryExpression
     :
-    ('++' |  '--' |  'sizeof')*
-    (postfixExpression
-    |   unaryOperator castExpression
-    |   ('sizeof') '(' typeName ')'
-    )
+    (incOp='++' |  decOp='--' |  sizeOfOp='sizeof')* (postfixExpression | unaryOperator castExpression | ('sizeof') '(' typeName ')')
     ;
 
 unaryOperator
