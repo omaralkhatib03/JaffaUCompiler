@@ -21,7 +21,7 @@
             "name": "Debug ANTLR4 grammar",
             "type": "antlr-debug",
             "request": "launch",
-            "input": "./compiler_tests/_example/example.c",
+            "input": "./tests/_example/example.c",
             "grammar": "src/grammar/c.g4",
             "startRule": "compilationUnit",
             "printParseTree": true,

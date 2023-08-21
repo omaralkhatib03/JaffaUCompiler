@@ -25,7 +25,7 @@ fail_testcase() {
     printf '%s\n' "</testcase>" >> "${J_UNIT_OUTPUT_FILE}"
 }
 
-for DRIVER in compiler_tests/**/*_driver.c; do
+for DRIVER in tests/**/*_driver.c; do
     (( TOTAL++ ))
 
     TO_ASSEMBLE="${DRIVER%_driver.c}.c"
