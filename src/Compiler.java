@@ -567,7 +567,8 @@ public class Compiler extends cBaseVisitor<String>
         else if (constant.matches(charRegex))
         {
             type = "constant char";
-            // TODO: implement char constant
+            String reg = getConstRegister("int", true);
+            this.ctx.writeBodyString(currFunction.getId(), writeLiInstruction(reg, String.valueOf((int) constant.charAt(1))) + "\n");
         }
 
         if (type.equals("")) // could not identify type
